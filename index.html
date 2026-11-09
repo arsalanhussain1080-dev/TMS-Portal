@@ -295,13 +295,13 @@
       "arsalan125@gmail.com": "arsalan123"
     };
 
-    // TMS Batch 1 Nodes Data Structure with Bunny.net embed links
+    // TMS Batch 1 Nodes Data Structure (Ab sirf videoId deni hai)
     const batch1Nodes = [
       {
         title: "TMS NODE 1: (Liquidity & Inefficiency)",
         lectures: [
-          { title: "LEC 1: Introduction to TMS - The Mystery Syndicate", url: "https://iframe.mediadelivery.net/embed/803385/dff20229-1e6e-44fc-a3eb-8d8113a3da7e?autoplay=true" },
-          { title: "LEC 2: ICT VOLUME IMBALANCE", url: "https://iframe.mediadelivery.net/embed/803385/YOUR_NEXT_VIDEO_ID_HERE?autoplay=true" }
+          { title: "LEC 1: Introduction to TMS - The Mystery Syndicate", videoId: "dff20229-1e6e-44fc-a3eb-8d8113a3da7e" },
+          { title: "LEC 2: ICT VOLUME IMBALANCE", videoId: "YAHAN_DOOSRI_VIDEO_KI_ID_DALNA" }
         ]
       }
     ];
@@ -371,7 +371,7 @@
       selectedNode.lectures.forEach((lec) => {
         const item = document.createElement('div');
         item.className = 'list-item';
-        item.onclick = () => playSelectedVideo(lec.title, lec.url);
+        item.onclick = () => playSelectedVideo(lec.title, lec.videoId);
         item.innerHTML = `
           <div style="display:flex; align-items:center;">
             <span class="play-icon">▶</span>
@@ -385,10 +385,10 @@
       showScreen(lecturesListScreen);
     }
 
-    function playSelectedVideo(title, videoUrl) {
+    function playSelectedVideo(title, vidId) {
       currentPlayingTitle.innerText = title;
-      // Inject Bunny.net secure iframe player
-      iframeContainer.innerHTML = `<iframe src="${videoUrl}" loading="lazy" style="border:0;position:absolute;top:0;height:100%;width:100%;" allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture;" allowfullscreen="true"></iframe>`;
+      // Automatically generate secure Bunny.net embed iframe using the Video ID
+      iframeContainer.innerHTML = `<iframe src="https://iframe.mediadelivery.net/embed/803385/${vidId}?autoplay=true&loop=false&muted=false&preload=true" loading="lazy" style="border:0;position:absolute;top:0;height:100%;width:100%;" allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture;" allowfullscreen="true"></iframe>`;
       showScreen(videoPlayerScreen);
       initWatermark(currentUserEmail);
     }
