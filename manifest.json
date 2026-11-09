@@ -1,0 +1,25 @@
+{
+  "name": "TMS Student Portal by Trader Sajjad",
+  "short_name": "TMS Portal",
+  "lang": "en",
+  "dir": "ltr",
+  "description": "Authorized access portal for students of TMS Mentorship.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "display_override": [
+    "standalone",
+    "window-controls-overlay"
+  ],
+  "orientation": "portrait",
+  "background_color": "#07080a",
+  "theme_color": "#2563eb",
+  "scope": "./",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "1000x1000",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
