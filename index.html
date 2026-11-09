@@ -191,6 +191,7 @@
     .video-wrapper {
       position: relative;
       width: 100%;
+      padding-top: 56.25%; /* 16:9 Aspect Ratio */
       background: #000;
       border-radius: 10px;
       overflow: hidden;
@@ -199,7 +200,14 @@
       border: 1px solid rgba(59, 130, 246, 0.4);
     }
 
-    video { width: 100%; display: block; }
+    .video-wrapper iframe {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
 
     .watermark {
       position: absolute;
@@ -233,7 +241,7 @@
     </div>
   </div>
 
-  <!-- 2. COURSES SCREEN (Consortium Hidden, Only Batch 1 Active) -->
+  <!-- 2. COURSES SCREEN -->
   <div id="courses-screen" class="container hidden">
     <div class="top-bar">
       <div>
@@ -245,7 +253,6 @@
 
     <div class="section-title">My Courses</div>
     
-    <!-- List 1 (Active) -->
     <div class="list-item" onclick="openBatch1Chapters()">
       <div>
         <h4>TMS Batch 1 lectures</h4>
@@ -253,34 +260,13 @@
       </div>
       <span>➔</span>
     </div>
-
-    <!-- List 2 (Consortium - Hidden) -->
-    <!-- 
-    <div class="list-item" onclick="openEliteConsortium()">
-      <div>
-        <h4>TMS Elite Consortium</h4>
-        <span style="color:#3b82f6;">Advanced Live Models & Insights</span>
-      </div>
-      <span>➔</span>
-    </div>
-    -->
   </div>
 
-  <!-- 3. CHAPTERS SCREEN (TMS Batch 1 Nodes) -->
+  <!-- 3. CHAPTERS SCREEN -->
   <div id="chapters-screen" class="container hidden">
     <button class="back-btn" onclick="showScreen(coursesScreen)">❮ Back to Courses</button>
     <div class="section-title">TMS Batch 1 Modules</div>
     <div id="modules-list-container" class="scroll-box"></div>
-  </div>
-
-  <!-- 3B. ELITE CONSORTIUM SCREEN (Hidden) -->
-  <div id="elite-screen" class="container hidden">
-    <button class="back-btn" onclick="showScreen(coursesScreen)">❮ Back to Courses</button>
-    <div class="section-title">TMS Elite Consortium</div>
-    <div class="list-item" onclick="playSelectedVideo('Elite Masterclass Session 1', 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4')">
-      <div><span class="play-icon">▶</span><h4>Elite Masterclass Session 1</h4></div>
-      <span>Watch</span>
-    </div>
   </div>
 
   <!-- 4. LECTURES LIST SCREEN -->
@@ -297,10 +283,8 @@
 
     <div class="video-wrapper">
       <div id="watermark-overlay" class="watermark"></div>
-      <video id="lecture-video" controls controlsList="nodownload" disablePictureInPicture>
-        <source id="video-source" src="" type="video/mp4">
-        Your browser does not support video playback.
-      </video>
+      <!-- Bunny.net secure iframe player container -->
+      <div id="iframe-container" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></div>
     </div>
   </div>
 
@@ -311,15 +295,13 @@
       "arsalan125@gmail.com": "arsalan123"
     };
 
-    // TMS Batch 1 Nodes Data Structure (Only Node 1 Active)
+    // TMS Batch 1 Nodes Data Structure with Bunny.net embed links
     const batch1Nodes = [
       {
         title: "TMS NODE 1: (Liquidity & Inefficiency)",
         lectures: [
-          { title: "LEC 1: Introduction to TMS - The Mystery Syndicate", url: "https://player.mediadelivery.net/play/803385/dff20229-1e6e-44fc-a3eb-8d8113a3da7e" },
-          { title: "LEC 2: ICT VOLUME IMBALANCE", url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4" },
-          { title: "LEC 3: ICT ADVANCED LEVEL FVG", url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4" },
-          { title: "LEC 4: ICT BUYSIDE / SELLSIDE LIQUIDITY", url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4" }
+          { title: "LEC 1: Introduction to TMS - The Mystery Syndicate", url: "https://iframe.mediadelivery.net/embed/803385/dff20229-1e6e-44fc-a3eb-8d8113a3da7e?autoplay=true" },
+          { title: "LEC 2: ICT VOLUME IMBALANCE", url: "https://iframe.mediadelivery.net/embed/803385/YOUR_NEXT_VIDEO_ID_HERE?autoplay=true" }
         ]
       }
     ];
@@ -332,7 +314,6 @@
     const loginScreen = document.getElementById('login-screen');
     const coursesScreen = document.getElementById('courses-screen');
     const chaptersScreen = document.getElementById('chapters-screen');
-    const eliteScreen = document.getElementById('elite-screen');
     const lecturesListScreen = document.getElementById('lectures-list-screen');
     const videoPlayerScreen = document.getElementById('video-player-screen');
     
@@ -340,15 +321,14 @@
     const lecturesContainer = document.getElementById('lectures-container');
     const moduleTitleHeading = document.getElementById('module-title-heading');
     const currentPlayingTitle = document.getElementById('current-playing-title');
-    const lectureVideo = document.getElementById('lecture-video');
-    const videoSource = document.getElementById('video-source');
+    const iframeContainer = document.getElementById('iframe-container');
     const watermarkOverlay = document.getElementById('watermark-overlay');
 
     function showScreen(screenToShow) {
-      [loginScreen, coursesScreen, chaptersScreen, eliteScreen, lecturesListScreen, videoPlayerScreen].forEach(s => s.classList.add('hidden'));
+      [loginScreen, coursesScreen, chaptersScreen, lecturesListScreen, videoPlayerScreen].forEach(s => s.classList.add('hidden'));
       screenToShow.classList.remove('hidden');
       if (screenToShow !== videoPlayerScreen) {
-        lectureVideo.pause();
+        iframeContainer.innerHTML = ""; // Stop video when leaving screen
       }
     }
 
@@ -382,10 +362,6 @@
       showScreen(chaptersScreen);
     }
 
-    function openEliteConsortium() {
-      showScreen(eliteScreen);
-    }
-
     function openLecturesList(nodeIndex) {
       activeModuleIndex = nodeIndex;
       const selectedNode = batch1Nodes[nodeIndex];
@@ -411,14 +387,14 @@
 
     function playSelectedVideo(title, videoUrl) {
       currentPlayingTitle.innerText = title;
-      videoSource.src = videoUrl;
-      lectureVideo.load();
-      lectureVideo.play();
+      // Inject Bunny.net secure iframe player
+      iframeContainer.innerHTML = `<iframe src="${videoUrl}" loading="lazy" style="border:0;position:absolute;top:0;height:100%;width:100%;" allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture;" allowfullscreen="true"></iframe>`;
       showScreen(videoPlayerScreen);
       initWatermark(currentUserEmail);
     }
 
     function goBackFromVideo() {
+      iframeContainer.innerHTML = "";
       showScreen(lecturesListScreen);
     }
 
@@ -452,7 +428,6 @@
     });
 
     window.addEventListener('click', (e) => {
-      // Click Neon Ripple Effect
       createRipple(e.clientX, e.clientY);
     });
 
@@ -461,7 +436,6 @@
       ripples.push({ x: x, y: y, radius: 10, alpha: 1 });
     }
 
-    // Particles representing neon nodes
     let particles = [];
     for (let i = 0; i < 40; i++) {
       particles.push({
@@ -476,7 +450,6 @@
     function animateNeon() {
       ctx.clearRect(0, 0, width, height);
 
-      // Draw background particles & lines
       ctx.fillStyle = 'rgba(59, 130, 246, 0.3)';
       particles.forEach(p => {
         p.x += p.vx;
@@ -488,7 +461,6 @@
         ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
         ctx.fill();
 
-        // Distance from mouse for neon glow connection
         if (mouse.x !== null && mouse.y !== null) {
           let dx = p.x - mouse.x;
           let dy = p.y - mouse.y;
@@ -504,7 +476,6 @@
         }
       });
 
-      // Mouse Neon Aura
       if (mouse.x !== null && mouse.y !== null) {
         let gradient = ctx.createRadialGradient(mouse.x, mouse.y, 0, mouse.x, mouse.y, 180);
         gradient.addColorStop(0, 'rgba(37, 99, 235, 0.15)');
@@ -513,7 +484,6 @@
         ctx.fillRect(0, 0, width, height);
       }
 
-      // Render Clicks Neon Ripples
       ripples.forEach((r, index) => {
         r.radius += 4;
         r.alpha -= 0.03;
