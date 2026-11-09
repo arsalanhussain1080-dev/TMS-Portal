@@ -4,7 +4,7 @@
   "lang": "en",
   "dir": "ltr",
   "description": "Authorized access portal for students of TMS Mentorship.",
-  "start_url": "./index.html",
+  "start_url": "https://tradersajjad-portal.vercel.app/index.html",
   "display": "standalone",
   "display_override": [
     "standalone",
@@ -13,23 +13,17 @@
   "orientation": "portrait",
   "background_color": "#07080a",
   "theme_color": "#2563eb",
-  "scope": "./",
+  "scope": "https://tradersajjad-portal.vercel.app/",
   "icons": [
     {
-      "src": "/icon.png",
+      "src": "https://tradersajjad-portal.vercel.app/icon.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "icon.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "icon.png",
-      "sizes": "1000x1000",
+      "src": "https://tradersajjad-portal.vercel.app/icon.png",
+      "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     }
