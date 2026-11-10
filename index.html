@@ -200,6 +200,20 @@
       border: 1px solid rgba(59, 130, 246, 0.4);
     }
 
+    /* CSS Fullscreen Class */
+    .video-wrapper.css-fullscreen {
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      padding-top: 0 !important;
+      max-width: none !important;
+      z-index: 999999 !important;
+      border-radius: 0 !important;
+      border: none !important;
+    }
+
     .video-wrapper iframe {
       position: absolute;
       top: 0;
@@ -211,14 +225,35 @@
 
     .watermark {
       position: absolute;
-      color: rgba(74, 222, 128, 0.75);
-      font-size: 16px;
+      color: rgba(74, 222, 128, 0.85);
+      font-size: 18px;
       font-weight: bold;
       pointer-events: none;
       z-index: 2147483647;
       user-select: none;
       transition: all 1.5s ease-in-out;
       text-shadow: 1px 1px 6px rgba(0,0,0,0.9);
+    }
+
+    /* Custom Fullscreen Toggle Button */
+    .custom-fs-btn {
+      position: absolute;
+      bottom: 15px;
+      right: 15px;
+      background: rgba(0, 0, 0, 0.7);
+      color: #4ade80;
+      border: 1px solid #4ade80;
+      padding: 6px 12px;
+      font-size: 13px;
+      border-radius: 5px;
+      cursor: pointer;
+      z-index: 2147483648;
+      font-weight: bold;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    }
+    .custom-fs-btn:hover {
+      background: #4ade80;
+      color: #000;
     }
   </style>
 </head>
@@ -278,12 +313,15 @@
 
   <!-- 5. VIDEO PLAYER SCREEN -->
   <div id="video-player-screen" class="container hidden" style="max-width: 850px;">
-    <button class="back-btn" onclick="goBackFromVideo()">❮ Back to Lectures</button>
+    <button class="back-btn" id="back-to-lec-btn" onclick="goBackFromVideo()">❮ Back to Lectures</button>
     <h3 id="current-playing-title" style="color: #4ade80; margin-bottom: 12px; font-size: 16px;"></h3>
 
     <div class="video-wrapper" id="video-wrapper-box">
+      <!-- Watermark stays inside wrapper -->
       <div id="watermark-overlay" class="watermark"></div>
       <div id="iframe-container" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></div>
+      <!-- Custom Fullscreen Button -->
+      <button class="custom-fs-btn" id="fs-toggle-btn" onclick="toggleCustomFullscreen()">⛶ Fullscreen</button>
     </div>
   </div>
 
@@ -320,8 +358,9 @@
     const iframeContainer = document.getElementById('iframe-container');
     const watermarkOverlay = document.getElementById('watermark-overlay');
     const videoWrapperBox = document.getElementById('video-wrapper-box');
+    const fsToggleBtn = document.getElementById('fs-toggle-btn');
+    const backToLecBtn = document.getElementById('back-to-lec-btn');
 
-    // Check if user is already logged in on page load
     window.addEventListener('DOMContentLoaded', () => {
       if (currentUserEmail && validStudents[currentUserEmail]) {
         document.getElementById('user-display').innerText = currentUserEmail;
@@ -333,6 +372,10 @@
     });
 
     function showScreen(screenToShow) {
+      // Exit fullscreen if switching screens
+      if (videoWrapperBox.classList.contains('css-fullscreen')) {
+        toggleCustomFullscreen();
+      }
       [loginScreen, coursesScreen, chaptersScreen, lecturesListScreen, videoPlayerScreen].forEach(s => s.classList.add('hidden'));
       screenToShow.classList.remove('hidden');
       if (screenToShow !== videoPlayerScreen) {
@@ -347,7 +390,7 @@
 
       if (validStudents[email] && validStudents[email] === password) {
         currentUserEmail = email;
-        localStorage.setItem("tms_logged_user", email); // Save session
+        localStorage.setItem("tms_logged_user", email);
         document.getElementById('user-display').innerText = email;
         showScreen(coursesScreen);
         initSecurity();
@@ -357,7 +400,7 @@
     });
 
     function logoutUser() {
-      localStorage.removeItem("tms_logged_user"); // Clear session
+      localStorage.removeItem("tms_logged_user");
       location.reload();
     }
 
@@ -401,14 +444,32 @@
 
     function playSelectedVideo(title, vidId) {
       currentPlayingTitle.innerText = title;
-      iframeContainer.innerHTML = `<iframe src="https://iframe.mediadelivery.net/embed/803385/${vidId}?autoplay=true&loop=false&muted=false&preload=true" loading="lazy" style="border:0;position:absolute;top:0;height:100%;width:100%;" allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture;" allowfullscreen="true"></iframe>`;
+      iframeContainer.innerHTML = `<iframe src="https://iframe.mediadelivery.net/embed/803385/${vidId}?autoplay=true&loop=false&muted=false&preload=true" loading="lazy" style="border:0;position:absolute;top:0;height:100%;width:100%;" allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture;" allowfullscreen="false"></iframe>`;
       showScreen(videoPlayerScreen);
       initWatermark(currentUserEmail);
     }
 
     function goBackFromVideo() {
+      if (videoWrapperBox.classList.contains('css-fullscreen')) {
+        toggleCustomFullscreen();
+      }
       iframeContainer.innerHTML = "";
       showScreen(lecturesListScreen);
+    }
+
+    // Custom Fullscreen Toggle Function (Keeps Watermark Visible)
+    function toggleCustomFullscreen() {
+      if (!videoWrapperBox.classList.contains('css-fullscreen')) {
+        videoWrapperBox.classList.add('css-fullscreen');
+        fsToggleBtn.innerText = "✕ Exit Fullscreen";
+        backToLecBtn.style.display = "none";
+        currentPlayingTitle.style.display = "none";
+      } else {
+        videoWrapperBox.classList.remove('css-fullscreen');
+        fsToggleBtn.innerText = "⛶ Fullscreen";
+        backToLecBtn.style.display = "block";
+        currentPlayingTitle.style.display = "block";
+      }
     }
 
     function initWatermark(email) {
@@ -418,19 +479,11 @@
           clearInterval(moveInterval);
           return;
         }
-        const top = Math.floor(Math.random() * 80) + 5;
-        const left = Math.floor(Math.random() * 70) + 5;
+        const top = Math.floor(Math.random() * 80) + 10;
+        const left = Math.floor(Math.random() * 70) + 10;
         watermarkOverlay.style.top = top + '%';
         watermarkOverlay.style.left = left + '%';
       }, 2500);
-
-      document.addEventListener('fullscreenchange', () => {
-        if (document.fullscreenElement) {
-          videoWrapperBox.style.zIndex = "999999";
-        } else {
-          videoWrapperBox.style.zIndex = "auto";
-        }
-      });
     }
 
     // NEON INTERACTIVE BACKGROUND ANIMATION SCRIPT
