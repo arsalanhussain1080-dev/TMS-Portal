@@ -1,29 +1,21 @@
 {
-  "name": "TMS Student Portal by Trader Sajjad",
+  "name": "Trader Sajjad Student Portal",
   "short_name": "TMS Portal",
-  "lang": "en",
-  "dir": "ltr",
-  "description": "Authorized access portal for students of TMS Mentorship.",
-  "start_url": "https://tradersajjad-portal.vercel.app/index.html",
+  "start_url": "/",
   "display": "standalone",
-  "display_override": [
-    "standalone",
-    "window-controls-overlay"
-  ],
-  "orientation": "portrait",
   "background_color": "#07080a",
   "theme_color": "#2563eb",
-  "scope": "https://tradersajjad-portal.vercel.app/",
+  "description": "Official Student Access Portal for TMS Mentorship by Trader Sajjad",
   "icons": [
     {
-      "src": "https://tradersajjad-portal.vercel.app/icon.png",
-      "sizes": "512x512",
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "https://tradersajjad-portal.vercel.app/icon.png",
-      "sizes": "192x192",
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
     }
