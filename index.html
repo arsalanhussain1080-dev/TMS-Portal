@@ -372,7 +372,6 @@
     });
 
     function showScreen(screenToShow) {
-      // Exit fullscreen if switching screens
       if (videoWrapperBox.classList.contains('css-fullscreen')) {
         toggleCustomFullscreen();
       }
@@ -444,7 +443,8 @@
 
     function playSelectedVideo(title, vidId) {
       currentPlayingTitle.innerText = title;
-      iframeContainer.innerHTML = `<iframe src="https://iframe.mediadelivery.net/embed/803385/${vidId}?autoplay=true&loop=false&muted=false&preload=true" loading="lazy" style="border:0;position:absolute;top:0;height:100%;width:100%;" allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture;" allowfullscreen="false"></iframe>`;
+      // Updated iframe with proper mobile-compatible referrerpolicy attribute to fix 500 server error
+      iframeContainer.innerHTML = `<iframe src="https://iframe.mediadelivery.net/embed/803385/${vidId}?autoplay=true&loop=false&muted=false&preload=true" referrerpolicy="no-referrer-when-downgrade" loading="lazy" style="border:0;position:absolute;top:0;height:100%;width:100%;" allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture;" allowfullscreen="false"></iframe>`;
       showScreen(videoPlayerScreen);
       initWatermark(currentUserEmail);
     }
@@ -457,7 +457,6 @@
       showScreen(lecturesListScreen);
     }
 
-    // Custom Fullscreen Toggle Function (Keeps Watermark Visible)
     function toggleCustomFullscreen() {
       if (!videoWrapperBox.classList.contains('css-fullscreen')) {
         videoWrapperBox.classList.add('css-fullscreen');
