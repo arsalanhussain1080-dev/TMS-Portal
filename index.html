@@ -211,14 +211,14 @@
 
     .watermark {
       position: absolute;
-      color: rgba(255, 255, 255, 0.4);
-      font-size: 15px;
+      color: rgba(74, 222, 128, 0.75);
+      font-size: 16px;
       font-weight: bold;
       pointer-events: none;
-      z-index: 99;
+      z-index: 2147483647;
       user-select: none;
       transition: all 1.5s ease-in-out;
-      text-shadow: 1px 1px 4px rgba(0,0,0,0.9);
+      text-shadow: 1px 1px 6px rgba(0,0,0,0.9);
     }
   </style>
 </head>
@@ -248,7 +248,7 @@
         <h4 style="color:#4ade80;">Welcome</h4>
         <p id="user-display" style="font-size:13px; color:#94a3b8;"></p>
       </div>
-      <button class="logout-btn" onclick="location.reload()">Logout</button>
+      <button class="logout-btn" onclick="logoutUser()">Logout</button>
     </div>
 
     <div class="section-title">My Courses</div>
@@ -281,21 +281,18 @@
     <button class="back-btn" onclick="goBackFromVideo()">❮ Back to Lectures</button>
     <h3 id="current-playing-title" style="color: #4ade80; margin-bottom: 12px; font-size: 16px;"></h3>
 
-    <div class="video-wrapper">
+    <div class="video-wrapper" id="video-wrapper-box">
       <div id="watermark-overlay" class="watermark"></div>
-      <!-- Bunny.net secure iframe player container -->
       <div id="iframe-container" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></div>
     </div>
   </div>
 
   <script>
-    // Valid Students Database
     const validStudents = {
       "bgsameer420@gmail.com": "bgsameer",
       "arsalan125@gmail.com": "arsalan123"
     };
 
-    // TMS Batch 1 Nodes Data Structure (Ab sirf videoId deni hai)
     const batch1Nodes = [
       {
         title: "TMS NODE 1: (Liquidity & Inefficiency)",
@@ -306,10 +303,9 @@
       }
     ];
 
-    let currentUserEmail = "";
+    let currentUserEmail = localStorage.getItem("tms_logged_user") || "";
     let activeModuleIndex = 0;
 
-    // DOM Elements
     const loginForm = document.getElementById('login-form');
     const loginScreen = document.getElementById('login-screen');
     const coursesScreen = document.getElementById('courses-screen');
@@ -323,12 +319,24 @@
     const currentPlayingTitle = document.getElementById('current-playing-title');
     const iframeContainer = document.getElementById('iframe-container');
     const watermarkOverlay = document.getElementById('watermark-overlay');
+    const videoWrapperBox = document.getElementById('video-wrapper-box');
+
+    // Check if user is already logged in on page load
+    window.addEventListener('DOMContentLoaded', () => {
+      if (currentUserEmail && validStudents[currentUserEmail]) {
+        document.getElementById('user-display').innerText = currentUserEmail;
+        showScreen(coursesScreen);
+        initSecurity();
+      } else {
+        showScreen(loginScreen);
+      }
+    });
 
     function showScreen(screenToShow) {
       [loginScreen, coursesScreen, chaptersScreen, lecturesListScreen, videoPlayerScreen].forEach(s => s.classList.add('hidden'));
       screenToShow.classList.remove('hidden');
       if (screenToShow !== videoPlayerScreen) {
-        iframeContainer.innerHTML = ""; // Stop video when leaving screen
+        iframeContainer.innerHTML = "";
       }
     }
 
@@ -339,6 +347,7 @@
 
       if (validStudents[email] && validStudents[email] === password) {
         currentUserEmail = email;
+        localStorage.setItem("tms_logged_user", email); // Save session
         document.getElementById('user-display').innerText = email;
         showScreen(coursesScreen);
         initSecurity();
@@ -346,6 +355,11 @@
         document.getElementById('error-msg').style.display = 'block';
       }
     });
+
+    function logoutUser() {
+      localStorage.removeItem("tms_logged_user"); // Clear session
+      location.reload();
+    }
 
     function openBatch1Chapters() {
       modulesListContainer.innerHTML = "";
@@ -387,7 +401,6 @@
 
     function playSelectedVideo(title, vidId) {
       currentPlayingTitle.innerText = title;
-      // Automatically generate secure Bunny.net embed iframe using the Video ID
       iframeContainer.innerHTML = `<iframe src="https://iframe.mediadelivery.net/embed/803385/${vidId}?autoplay=true&loop=false&muted=false&preload=true" loading="lazy" style="border:0;position:absolute;top:0;height:100%;width:100%;" allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture;" allowfullscreen="true"></iframe>`;
       showScreen(videoPlayerScreen);
       initWatermark(currentUserEmail);
@@ -398,15 +411,26 @@
       showScreen(lecturesListScreen);
     }
 
-    // Floating Watermark Logic
     function initWatermark(email) {
       watermarkOverlay.innerText = email;
-      setInterval(() => {
-        const top = Math.floor(Math.random() * 75) + 10;
-        const left = Math.floor(Math.random() * 65) + 10;
+      const moveInterval = setInterval(() => {
+        if (videoPlayerScreen.classList.contains('hidden')) {
+          clearInterval(moveInterval);
+          return;
+        }
+        const top = Math.floor(Math.random() * 80) + 5;
+        const left = Math.floor(Math.random() * 70) + 5;
         watermarkOverlay.style.top = top + '%';
         watermarkOverlay.style.left = left + '%';
       }, 2500);
+
+      document.addEventListener('fullscreenchange', () => {
+        if (document.fullscreenElement) {
+          videoWrapperBox.style.zIndex = "999999";
+        } else {
+          videoWrapperBox.style.zIndex = "auto";
+        }
+      });
     }
 
     // NEON INTERACTIVE BACKGROUND ANIMATION SCRIPT
