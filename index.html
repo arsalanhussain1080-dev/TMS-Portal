@@ -331,6 +331,9 @@
       "arsalan125@gmail.com": "arsalan123"
     };
 
+    // Automatically generate hash based on validStudents credentials
+    const currentStudentsHash = btoa(JSON.stringify(validStudents));
+
     const batch1Nodes = [
       {
         title: "TMS NODE 1: (Liquidity & Inefficiency)",
@@ -426,6 +429,7 @@
     ];
 
     let currentUserEmail = localStorage.getItem("tms_logged_user") || "";
+    let savedHash = localStorage.getItem("tms_students_hash") || "";
     let activeModuleIndex = 0;
 
     const loginForm = document.getElementById('login-form');
@@ -446,6 +450,13 @@
     const backToLecBtn = document.getElementById('back-to-lec-btn');
 
     window.addEventListener('DOMContentLoaded', () => {
+      // Auto-invalidate session if validStudents change
+      if (savedHash !== currentStudentsHash || (currentUserEmail && !validStudents[currentUserEmail])) {
+        localStorage.removeItem("tms_logged_user");
+        localStorage.setItem("tms_students_hash", currentStudentsHash);
+        currentUserEmail = "";
+      }
+
       if (currentUserEmail && validStudents[currentUserEmail]) {
         document.getElementById('user-display').innerText = currentUserEmail;
         showScreen(coursesScreen);
@@ -474,6 +485,7 @@
       if (validStudents[email] && validStudents[email] === password) {
         currentUserEmail = email;
         localStorage.setItem("tms_logged_user", email);
+        localStorage.setItem("tms_students_hash", currentStudentsHash);
         document.getElementById('user-display').innerText = email;
         showScreen(coursesScreen);
         initSecurity();
