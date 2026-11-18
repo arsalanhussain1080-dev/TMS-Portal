@@ -26,3 +26,25 @@ export async function request(path,body,verb='POST'){
  if(!res.ok)throw Error(data.error||'Request failed');
  return data;
 }
+
+const authErrors = new Map([
+  ['auth/invalid-credential', 'Firebase rejected the email or password. If you forgot your TMS password, use Reset password.'],
+  ['auth/wrong-password', 'Firebase rejected the email or password. If you forgot your TMS password, use Reset password.'],
+  ['auth/user-not-found', 'Firebase rejected the email or password. If you forgot your TMS password, use Reset password.'],
+  ['auth/invalid-email', 'Enter a valid email address.'],
+  ['auth/unauthorized-domain', 'Firebase Authentication has not authorized this preview domain.'],
+  ['auth/app-not-authorized', 'The Firebase web key does not allow this app or preview domain.'],
+  ['auth/invalid-api-key', 'The Firebase web API key is invalid.'],
+  ['auth/api-key-not-valid', 'The Firebase web API key is invalid.'],
+  ['auth/operation-not-allowed', 'Email and password sign-in is disabled in Firebase.'],
+  ['auth/network-request-failed', 'Could not reach Firebase. Check your connection and try again.'],
+  ['auth/too-many-requests', 'Firebase temporarily limited attempts. Wait before retrying.'],
+  ['auth/user-disabled', 'This account is disabled. Contact the TMS project owner.'],
+  ['auth/internal-error', 'Firebase could not complete the request. Try again shortly.']
+]);
+
+export function authErrorMessage(error, fallback) {
+  const code = error?.code;
+  if (typeof code !== 'string' || !/^auth\/[a-z0-9-]{1,60}$/.test(code)) return fallback;
+  return (authErrors.get(code) || fallback) + ' (' + code + ')';
+}

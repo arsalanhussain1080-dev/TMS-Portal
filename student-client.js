@@ -1,4 +1,4 @@
-import {ready, watch, user, login, logout, resetPassword, request} from './auth-client.js';
+import {ready, watch, user, login, logout, resetPassword, request, authErrorMessage} from './auth-client.js';
 
 const byId = id => document.getElementById(id);
 const titles = window.TMS_COURSE_TITLES;
@@ -12,6 +12,7 @@ let deviceSecret;
 let session = 0;
 let activeNode;
 let activeLecture;
+let playbackRequest = 0;
 let locks = {};
 
 function show(view) {
@@ -19,6 +20,7 @@ function show(view) {
   byId('nav-course').classList.toggle('active', view === 'course');
   byId('nav-chapters').classList.toggle('active', Boolean(view && view !== 'course'));
   if (view !== 'player') {
+    playbackRequest++;
     activeLecture = undefined;
     document.querySelector('.video').replaceChildren();
   }
@@ -63,17 +65,25 @@ function openNode(nodeIndex) {
 
 async function openLecture(nodeIndex, lectureIndex) {
   const generation = session;
+  const requestId = ++playbackRequest;
   activeLecture = lectureIndex;
   byId('lecture-heading').textContent = titles[nodeIndex][lectureIndex + 1];
   const player = document.querySelector('.video');
   player.textContent = 'Checking lecture access…';
   show('player');
   try {
-    await request('/api/video', {nodeIndex, lectureIndex, deviceSecret});
+    const {embedUrl} = await request('/api/video', {nodeIndex, lectureIndex, deviceSecret});
+    if (generation !== session || requestId !== playbackRequest) return;
+    const url = new URL(embedUrl);
+    if (url.origin !== 'https://iframe.mediadelivery.net') throw new Error('Video playback is unavailable.');
+    const frame = document.createElement('iframe');
+    frame.src = url.href;
+    frame.title = titles[nodeIndex][lectureIndex + 1];
+    frame.allow = 'autoplay; encrypted-media; picture-in-picture';
+    frame.allowFullscreen = true;
+    player.replaceChildren(frame);
   } catch (err) {
-    if (generation === session && activeNode === nodeIndex && activeLecture === lectureIndex) {
-      player.textContent = err.message;
-    }
+    if (generation === session && requestId === playbackRequest) player.textContent = err.message;
   }
 }
 
@@ -156,12 +166,13 @@ window.addEventListener('focus', refresh);
 form.onsubmit = async event => {
   event.preventDefault();
   feedback.textContent = '';
+  const password = byId('auth-password');
   try {
-    const password = byId('auth-password');
     await login(byId('auth-email').value.trim(), password.value);
+  } catch (error) {
+    feedback.textContent = authErrorMessage(error, 'Firebase sign-in could not be completed.');
+  } finally {
     password.value = '';
-  } catch {
-    feedback.textContent = 'Sign-in failed. Check your credentials and try again.';
   }
 };
 reset.onclick = async () => {
@@ -169,8 +180,8 @@ reset.onclick = async () => {
   try {
     await resetPassword(byId('auth-email').value.trim());
     feedback.textContent = 'If the account is eligible, a reset email will be sent.';
-  } catch {
-    feedback.textContent = 'Password reset could not be requested.';
+  } catch (error) {
+    feedback.textContent = authErrorMessage(error, 'Password reset could not be requested.');
   }
 };
 out.onclick = () => logout().catch(() => { feedback.textContent = 'Sign-out failed. Try again.'; });

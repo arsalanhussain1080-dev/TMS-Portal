@@ -1,22 +1,33 @@
 'use strict';
 const admin = require('firebase-admin');
+
+function firebaseUnavailable(reason, code) {
+  console.error('TMS Firebase Admin unavailable:', reason, code || '');
+  return Object.assign(new Error('The portal cannot verify access right now. Contact your TMS administrator.'), {status: 503});
+}
+
+function privateKeyFromEnv(value) {
+  // Vercel values may use literal newlines, escaped newlines or enclosing quotes.
+  return value?.trim().replace(/^(["'])([\s\S]*)\1$/, '$2').trim()
+    .replace(/\\r\\n|\\n|\r\n/g, '\n');
+}
+
 function app() {
   if (admin.apps.length) return admin.app();
   const projectId = process.env.FIREBASE_PROJECT_ID;
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL?.trim();
-  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.trim().replace(/^(["'])([\s\S]*)\1$/, '$2').replace(/\\n/g, '\n');
+  const privateKey = privateKeyFromEnv(process.env.FIREBASE_PRIVATE_KEY);
   if (process.env.FIREBASE_AUTH_EMULATOR_HOST && process.env.FIRESTORE_EMULATOR_HOST && !process.env.VERCEL) {
     return admin.initializeApp({projectId: 'demo-tms-portal'});
   }
   if (projectId !== 'tss-admin-portal-1f3fa' || !clientEmail || !privateKey) {
-    throw Object.assign(new Error('Firebase server access is not configured for this deployment.'), {status: 503});
+    throw firebaseUnavailable('missing or mismatched environment configuration');
   }
   try {
     return admin.initializeApp({credential:admin.credential.cert({projectId,clientEmail,privateKey}),projectId});
   } catch (err) {
     if (err.code === 'app/invalid-credential') {
-      console.error('TMS Firebase Admin initialization failure:', err.code, String(err.message || '').slice(0, 500));
-      throw Object.assign(new Error('Firebase service-account credentials are invalid. Verify the Vercel client email and private key belong to the same active service account.'), {status: 503});
+      throw firebaseUnavailable('service-account credential initialization failed', err.code);
     }
     throw err;
   }
@@ -30,9 +41,8 @@ async function identity(req,{requireAdmin=false}={}) {
   try {
     token = await auth.verifyIdToken(header.slice(7), true);
   } catch (error) {
-    if (error.code === 'app/invalid-credential') {
-      console.error('TMS Firebase Admin verification failure:', error.code, String(error.message || '').slice(0, 500));
-      throw Object.assign(new Error('Firebase Admin credentials were rejected. Check the service-account email and private key in Vercel.'), {status: 503});
+    if (['app/invalid-credential', 'auth/invalid-credential', 'auth/insufficient-permission'].includes(error.code)) {
+      throw firebaseUnavailable('token verification service failed', error.code);
     }
     if (!['auth/id-token-expired', 'auth/id-token-revoked', 'auth/argument-error', 'auth/invalid-id-token', 'auth/user-disabled', 'auth/user-not-found'].includes(error.code)) throw error;
     throw Object.assign(new Error('Sign in again to continue.'), {status: 401});

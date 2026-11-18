@@ -21,8 +21,8 @@ account key out of Git and the browser.
    second browser is rejected until the admin resets the device. Sign in
    again after reset and confirm that the next browser can register.
 5. Suspend and reactivate the student. Lock and unlock a lecture and verify
-   both the student list and the video authorization endpoint. An unlocked
-   lecture currently reports that media playback is unavailable.
+   both the student list and the video authorization endpoint. With test video
+   configuration, an unlocked assigned lecture returns a signed embed URL.
 
 Vercel previews refuse account changes, lecture changes and device enrollment
 against the shared Firebase project. They can read authorized data if a server
@@ -37,7 +37,11 @@ web app as the eventual release.
   signed-in portal uses server APIs for all Firestore access.
 - Confirm the Email/Password provider, authorized domains where applicable,
   and the server credentials for the production deployment.
-- Use secure video hosting with server-issued short-lived playback credentials.
-  The video endpoint currently stops after student, device and lecture checks.
+- Enable Embed View Token Authentication in the TMS Bunny Stream library.
+  Set the server-only Vercel values `BUNNY_STREAM_LIBRARY_ID`,
+  `BUNNY_STREAM_EMBED_TOKEN_KEY`, and `BUNNY_STREAM_VIDEO_IDS`. The last
+  value is a JSON object mapping zero-based node and lecture numbers (for
+  example, `"0:0"`) to Bunny Stream video UUIDs. Verify direct media access
+  is restricted in Bunny and confirm playback from the intended domain.
 - Rotate any passwords previously embedded in the public portal source before
   bringing those students onto Firebase.
