@@ -17,8 +17,9 @@ module.exports=async function(req,res){
    try{await db.doc('Students/'+user.uid).set({name:cleanName,role:'student',active:true,mustChangePassword:true,createdAt:field.serverTimestamp()})}
    catch(e){await auth.deleteUser(user.uid);throw e}
    await db.collection('auditLogs').add({action,actor:admin.uid,target:user.uid,at:field.serverTimestamp()});
-   return response(res,200,{uid:user.uid,notice:'Account created. Send a password reset link using the approved admin workflow; never share a default password.'});
+   const setupLink=await auth.generatePasswordResetLink(cleanEmail);return response(res,200,{uid:user.uid,setupLink,notice:'Send this one-time password setup link to the intended student securely. Do not post it publicly.'});
   }
+  if(action==='passwordResetLink'){const cleanUid=str(uid,128);if(!cleanUid)return response(res,400,{error:'Invalid UID'});const student=await db.doc('Students/'+cleanUid).get();if(!student.exists)return response(res,404,{error:'Student not found'});const account=await auth.getUser(cleanUid);const setupLink=await auth.generatePasswordResetLink(account.email);await db.collection('auditLogs').add({action,actor:admin.uid,target:cleanUid,at:field.serverTimestamp()});return response(res,200,{setupLink});}
   if(action==='setStudentActive'){
    if(!str(uid,128)||typeof active!=='boolean')return response(res,400,{error:'Invalid request'});
    const ref=db.doc('Students/'+uid);if(!(await ref.get()).exists)return response(res,404,{error:'Student not found'});
