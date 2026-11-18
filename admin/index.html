@@ -8,26 +8,14 @@
 <section id="lectures" class="hidden"><div class="card"><h2>Manual Lecture Lock / Unlock Preview</h2><p>All original TMS node and lecture titles are preserved. Toggle controls here demonstrate the future admin workflow; they do not change student access yet.</p><div id="node-list"></div></div></section>
 <section id="devices" class="hidden"><div class="card"><h2>Device Lock Management</h2><p>Admin-only device reset will be wired to a secure authenticated endpoint. Until then, no device tokens are displayed or reset.</p><div class="empty">Device management backend pending</div></div></section>
 <section id="settings" class="hidden"><div class="card"><h2>Security & Integration</h2><p>Pending: Firebase admin role verification, Firestore rules, one-device enforcement, signed video playback, secure lecture authorization, audit logging, and first-login password reset.</p><p>Never put Firebase Admin SDK credentials or video signing secrets into this HTML.</p></div></section>
-</main></div><script>
+</main></div><script src="../course-data.js"></script><script>
 'use strict';
-const titles=[
-['TMS NODE 1: (Liquidity & Inefficiency)','LEC 1: Introduction to TMS - Trader Sajjad Shah','LEC 2: ICT Volume Imbalance'],
-['TMS NODE 2: (Dealing Range Theory)','LEC 1: Introduction to Dealing Ranges','LEC 2: Premium & Discount Arrays'],
-['TMS NODE 3: (FVG Types & Techniques)','LEC 1: Fair Value Gap Identification','LEC 2: Advanced FVG Rebalancing Strategies'],
-['TMS NODE 4: (ICT Block Theory & MSS)','LEC 1: Order Blocks & Breaker Blocks','LEC 2: Market Structure Shift (MSS)'],
-['TMS NODE 5: (ICT Bonus PD Arrays)','LEC 1: Mitigation Blocks & Rejection Blocks','LEC 2: Liquidity Voids & Propulsion Blocks'],
-['TMS NODE 6: (ICT Swing Theory)','LEC 1: Swing Highs & Swing Lows Setup','LEC 2: Internal vs External Range Liquidity'],
-['TMS NODE 7: (Intraday Architecture)','LEC 1: Session Openings & Key Levels','LEC 2: Intraday Price Delivery Framework'],
-['TMS NODE 8: (ICT Time & Price Theory)','LEC 1: Timing Daily Market Cycles','LEC 2: Killzones & Opening Ranges'],
-['TMS NODE 9: (ICT Power of 3 - Classic Buy/Sell Day)','LEC 1: Accumulation, Manipulation & Distribution (AMD)','LEC 2: Identifying Classic Buy & Sell Days'],
-['TMS NODE 10: (ICT Trading Models)','LEC 1: Core Algorithmic Model Walkthrough','LEC 2: Execution Checklist & Rules'],
-['TMS NODE 11: (IMPERIUM X - Risk Management)','LEC 1: Capital Preservation & Lot Sizing','LEC 2: Trader Psychology & Risk Discipline']
-];
-const pages=['overview','students','lectures','devices','settings'], students=[], locks=new Set();
+const titles=window.TMS_COURSE_TITLES;
+const pages=['overview','students','lectures','devices','settings'], students=[], locks=window.TMS_READ_LOCKS();
 function element(tag,cls,text){const e=document.createElement(tag);if(cls)e.className=cls;if(text!==undefined)e.textContent=text;return e}
 function navigate(page){pages.forEach(p=>document.getElementById(p).classList.toggle('hidden',p!==page));document.querySelectorAll('[data-page]').forEach(b=>b.classList.toggle('active',b.dataset.page===page))}
 for(const id of ['desktop-nav','mobile-nav']){const nav=document.getElementById(id);pages.forEach(p=>{const b=element('button','',p[0].toUpperCase()+p.slice(1));b.dataset.page=p;b.addEventListener('click',()=>navigate(p));nav.append(b)})}navigate('overview');
 function renderStudents(){document.getElementById('total').textContent=students.length;document.getElementById('active').textContent=students.filter(s=>s.active).length;const list=document.getElementById('student-list');list.replaceChildren();list.className=students.length?'':'empty';if(!students.length){list.textContent='No preview students added.';return}students.forEach((s,i)=>{const item=element('div','item'),info=element('div');info.append(element('strong','',s.name),element('small','',s.email));const actions=element('div','actions'),status=element('span','pill'+(s.active?'':' locked'),s.active?'Active':'Suspended'),toggle=element('button','btn secondary',s.active?'Suspend':'Activate'),del=element('button','btn danger','Remove');toggle.onclick=()=>{s.active=!s.active;renderStudents()};del.onclick=()=>{students.splice(i,1);renderStudents()};actions.append(status,toggle,del);item.append(info,actions);list.append(item)})}
 document.getElementById('add-student').onclick=()=>{const n=document.getElementById('student-name'),e=document.getElementById('student-email'),name=n.value.trim(),email=e.value.trim().toLowerCase();if(!name||!e.checkValidity()||!email){alert('Enter a valid name and email');return}if(students.some(s=>s.email===email)){alert('Email already exists in preview');return}students.push({name,email,active:true});n.value='';e.value='';renderStudents()};
-const list=document.getElementById('node-list');titles.forEach((node,ni)=>{const box=element('div','item'),wrap=element('div');wrap.style.width='100%';wrap.append(element('strong','',node[0]));node.slice(1).forEach((lecture,li)=>{const key=ni+':'+li,row=element('div','item'),text=element('div');text.append(element('strong','',lecture));const button=element('button','btn secondary','Lock (preview)');button.onclick=()=>{if(locks.has(key))locks.delete(key);else locks.add(key);button.textContent=locks.has(key)?'Unlock (preview)':'Lock (preview)';button.className='btn '+(locks.has(key)?'danger':'secondary')};row.append(text,button);wrap.append(row)});box.append(wrap);list.append(box)});renderStudents();
-</script></body></html>
+const list=document.getElementById('node-list');titles.forEach((node,ni)=>{const box=element('div','item'),wrap=element('div');wrap.style.width='100%';wrap.append(element('strong','',node[0]));node.slice(1).forEach((lecture,li)=>{const key=ni+':'+li,row=element('div','item'),text=element('div');text.append(element('strong','',lecture));const button=element('button','btn secondary','Lock (preview)');button.onclick=()=>{if(locks.has(key))locks.delete(key);else locks.add(key);button.textContent=locks.has(key)?'Unlock (preview)':'Lock (preview)';button.className='btn '+(locks.has(key)?'danger':'secondary');window.TMS_WRITE_LOCKS(locks)};row.append(text,button);wrap.append(row)});box.append(wrap);list.append(box)});renderStudents();
+</script>
