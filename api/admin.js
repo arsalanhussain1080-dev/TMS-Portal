@@ -41,7 +41,7 @@ module.exports=async function(req,res){
   }
   if(action==='setLectureLock'){
    if(!Number.isInteger(nodeIndex)||nodeIndex<0||nodeIndex>=11||!Number.isInteger(lectureIndex)||lectureIndex<0||lectureIndex>=2||typeof locked!=='boolean')return response(res,400,{error:'Invalid lecture selection'});
-   await db.doc('courseCatalog/batch1').set({lectureLocks:{[nodeIndex+':'+lectureIndex]:locked},updatedAt:field.serverTimestamp()},{merge:true});
+   const ref=db.doc('courseCatalog/batch1');await db.runTransaction(async tx=>{const snap=await tx.get(ref);const existing=snap.exists?snap.data().lectureLocks||{}:{};tx.set(ref,{lectureLocks:{...existing,[nodeIndex+':'+lectureIndex]:locked},updatedAt:field.serverTimestamp()},{merge:true});});
    await db.collection('auditLogs').add({action,actor:admin.uid,nodeIndex,lectureIndex,locked,at:field.serverTimestamp()});
    return response(res,200,{ok:true});
   }
