@@ -3,15 +3,22 @@ const admin = require('firebase-admin');
 function app() {
   if (admin.apps.length) return admin.app();
   const projectId = process.env.FIREBASE_PROJECT_ID;
-  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL?.trim();
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.trim().replace(/^(["'])([\s\S]*)\1$/, '$2').replace(/\\n/g, '\n');
   if (process.env.FIREBASE_AUTH_EMULATOR_HOST && process.env.FIRESTORE_EMULATOR_HOST && !process.env.VERCEL) {
     return admin.initializeApp({projectId: 'demo-tms-portal'});
   }
   if (projectId !== 'tss-admin-portal-1f3fa' || !clientEmail || !privateKey) {
     throw Object.assign(new Error('Firebase server access is not configured for this deployment.'), {status: 503});
   }
-  return admin.initializeApp({credential:admin.credential.cert({projectId,clientEmail,privateKey}),projectId});
+  try {
+    return admin.initializeApp({credential:admin.credential.cert({projectId,clientEmail,privateKey}),projectId});
+  } catch (err) {
+    if (err.code === 'app/invalid-credential') {
+      throw Object.assign(new Error('Firebase service-account credentials are invalid. Verify the Vercel client email and private key belong to the same active service account.'), {status: 503});
+    }
+    throw err;
+  }
 }
 function services() {app();return {auth:admin.auth(),db:admin.firestore(),field:admin.firestore.FieldValue};}
 async function identity(req,{requireAdmin=false}={}) {
@@ -22,6 +29,9 @@ async function identity(req,{requireAdmin=false}={}) {
   try {
     token = await auth.verifyIdToken(header.slice(7), true);
   } catch (error) {
+    if (error.code === 'app/invalid-credential') {
+      throw Object.assign(new Error('Firebase Admin credentials were rejected. Check the service-account email and private key in Vercel.'), {status: 503});
+    }
     if (!['auth/id-token-expired', 'auth/id-token-revoked', 'auth/argument-error', 'auth/invalid-id-token', 'auth/user-disabled', 'auth/user-not-found'].includes(error.code)) throw error;
     throw Object.assign(new Error('Sign in again to continue.'), {status: 401});
   }
