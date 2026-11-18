@@ -1,0 +1,41 @@
+plugins {
+    id 'com.android.application' version '8.7.3'
+}
+
+def releaseKeystore = System.getenv('TMS_ANDROID_KEYSTORE')
+android {
+    namespace 'com.themysterysyndicate.student'
+    compileSdk 35
+    defaultConfig {
+        applicationId 'com.themysterysyndicate.student'
+        minSdk 26
+        targetSdk 35
+        versionCode 1
+        versionName '1.0'
+    }
+    signingConfigs {
+        if (releaseKeystore) {
+            release {
+                storeFile file(releaseKeystore)
+                storePassword System.getenv('TMS_ANDROID_STORE_PASSWORD')
+                keyAlias System.getenv('TMS_ANDROID_KEY_ALIAS')
+                keyPassword System.getenv('TMS_ANDROID_KEY_PASSWORD')
+            }
+        }
+    }
+    buildTypes {
+        release {
+            if (releaseKeystore) signingConfig signingConfigs.release
+        }
+    }
+    sourceSets {
+        main.res.srcDir(layout.buildDirectory.dir('generated/tmsResources').get().asFile)
+    }
+}
+
+def prepareLauncherIcon = tasks.register('prepareLauncherIcon', Copy) {
+    from(rootProject.file('../icon-192x192.png'))
+    into(layout.buildDirectory.dir('generated/tmsResources/mipmap-xxxhdpi'))
+    rename { 'tms_launcher.png' }
+}
+tasks.named('preBuild').configure { dependsOn prepareLauncherIcon }

@@ -1,0 +1,50 @@
+name: TMS Android APK
+
+on:
+  push:
+    branches: [feature/tms-secure-admin-student]
+    paths: ['android/**', '.github/workflows/tms-android.yml', 'icon-192x192.png']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  apk:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Build and verify APK
+        env:
+          SIGNING_KEY: ${{ secrets.TMS_ANDROID_KEYSTORE_BASE64 }}
+          TMS_ANDROID_STORE_PASSWORD: ${{ secrets.TMS_ANDROID_STORE_PASSWORD }}
+          TMS_ANDROID_KEY_ALIAS: ${{ secrets.TMS_ANDROID_KEY_ALIAS }}
+          TMS_ANDROID_KEY_PASSWORD: ${{ secrets.TMS_ANDROID_KEY_PASSWORD }}
+        run: |
+          mkdir -p "${RUNNER_TEMP}/tms-apk"
+          if [[ -n "$SIGNING_KEY" ]]; then
+            export TMS_ANDROID_KEYSTORE="${RUNNER_TEMP}/tms-signing.p12"
+            trap 'rm -f "$TMS_ANDROID_KEYSTORE"' EXIT
+            umask 077
+            printf '%s' "$SIGNING_KEY" | base64 --decode > "$TMS_ANDROID_KEYSTORE"
+            unset SIGNING_KEY
+            gradle -p android --no-daemon assembleRelease
+            cp android/app/build/outputs/apk/release/app-release.apk "${RUNNER_TEMP}/tms-apk/TMS-Student.apk"
+          else
+            gradle -p android --no-daemon assembleDebug
+            cp android/app/build/outputs/apk/debug/app-debug.apk "${RUNNER_TEMP}/tms-apk/TMS-Student-Test.apk"
+          fi
+          apksigner="$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -n 1)"
+          "$apksigner" verify "$RUNNER_TEMP"/tms-apk/*.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TMS-Student-APK
+          path: ${{ runner.temp }}/tms-apk/*.apk
+          if-no-files-found: error
