@@ -187,8 +187,9 @@ function lectureMediaEditor(nodeIndex, lectureIndex, lecture) {
 }
 
 function render() {
-  byId('total').textContent = data.students.length;
-  byId('active').textContent = data.students.filter(student => student.active).length;
+  const roster = data.students.filter(student => !student.archived);
+  byId('total').textContent = roster.length;
+  byId('active').textContent = roster.filter(student => student.active).length;
   byId('student-list').replaceChildren();
   byId('device-list').replaceChildren();
   if (!data.students.length) {
@@ -196,13 +197,23 @@ function render() {
   }
   for (const student of data.students) {
     const {uid, active, registered} = student;
+    if (student.archived) {
+      byId('student-list').append(studentRow(student, 'Removed from active roster',
+        actionButton('Restore student', button => change('setStudentArchived', {uid, archived: false}, button))));
+      continue;
+    }
     const accessCount = student.lectureAccess.length;
     const summary = (active ? 'Active' : 'Suspended') + ' · ' + accessCount + ' lectures granted';
     byId('student-list').append(studentRow(student, summary,
       actionButton('Lecture access', () => editStudentLectures(student)),
       actionButton(active ? 'Suspend' : 'Activate', button =>
         change('setStudentActive', {uid, active: !active}, button)),
-      actionButton('Password setup link', button => change('passwordResetLink', {uid}, button))));
+      actionButton('Password setup link', button => change('passwordResetLink', {uid}, button)),
+      actionButton('Remove student', button => {
+        if (confirm('Remove this student from the active roster and block their access?')) {
+          change('setStudentArchived', {uid, archived: true}, button);
+        }
+      })));
     byId('device-list').append(studentRow(student, registered ? 'Browser registered' : 'No browser registered',
       actionButton('Reset device', button => {
         if (confirm('Reset the registered browser for this student?')) change('resetDevice', {uid}, button);

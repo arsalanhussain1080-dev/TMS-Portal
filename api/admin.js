@@ -33,7 +33,7 @@ module.exports = async function(req, res) {
       return response(res, 200, {
         students: students.docs.map(doc => ({
           uid: doc.id, name: doc.data().name || '', email: doc.data().email || '',
-          active: doc.data().active === true, registered: registered.has(doc.id),
+          active: doc.data().active === true, archived: doc.data().archived === true, registered: registered.has(doc.id),
           lectureAccess: allowedLectures(accessByStudent.get(doc.id))
         })),
         lectureLocks: catalogDoc.data()?.lectureLocks || {},
@@ -103,7 +103,7 @@ module.exports = async function(req, res) {
       return response(res, 200, {ok: true});
     }
 
-    if (!['setStudentActive', 'passwordResetLink', 'resetDevice', 'setStudentLectureAccess'].includes(action)) {
+    if (!['setStudentActive', 'passwordResetLink', 'resetDevice', 'setStudentLectureAccess', 'setStudentArchived'].includes(action)) {
       deny(400, 'Unknown action.');
     }
     if (typeof uid !== 'string' || !/^[^/]{1,128}$/.test(uid) || uid === '.' || uid === '..') {
@@ -143,18 +143,23 @@ module.exports = async function(req, res) {
       return response(res, 200, {setupLink});
     }
 
+    const archived = req.body.archived;
+    if (action === 'setStudentArchived' && typeof archived !== 'boolean') deny(400, 'Invalid roster status.');
     if (action === 'setStudentActive' && typeof active !== 'boolean') deny(400, 'Invalid account status.');
     await db.runTransaction(async tx => {
       const [student, adminDoc] = await tx.getAll(studentRef, adminRef);
       checkTarget(student, adminDoc);
-      if (action === 'setStudentActive') {
+      if (action === 'setStudentArchived') {
+        tx.update(studentRef, {archived, active: false});
+      } else if (action === 'setStudentActive') {
+        if (student.data().archived === true) deny(409, 'Restore this student before activating access.');
         tx.update(studentRef, {active});
       } else {
         tx.set(deviceRef, {minAuthTime: Math.floor(Date.now() / 1000) + 1});
       }
       const previewReset = process.env.VERCEL_ENV === 'preview' && action === 'resetDevice';
       const log = previewReset ? deviceRef.collection('audit').doc() : auditRef();
-      tx.create(log, audit(uid, action === 'setStudentActive' ? {active} : {}));
+      tx.create(log, audit(uid, action === 'setStudentArchived' ? {archived} : action === 'setStudentActive' ? {active} : {}));
     });
     return response(res, 200, {ok: true});
   } catch (err) {

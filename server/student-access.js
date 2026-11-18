@@ -19,7 +19,7 @@ async function studentAccess(req, {enroll = false, readCatalog = false} = {}) {
     const studentRef = db.collection('Students').doc(user.uid);
     const deviceRef = deviceCollection(db).doc(user.uid);
     const [student, device] = await tx.getAll(studentRef, deviceRef);
-    if (student.data()?.active !== true || student.data().role !== 'student') {
+    if (student.data()?.active !== true || student.data().role !== 'student' || student.data().archived === true) {
       deny(403, 'Student access is suspended or unavailable.');
     }
     const binding = device.data();
