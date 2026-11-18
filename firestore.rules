@@ -1,34 +1,7 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    function signedIn() { return request.auth != null; }
-    function admin() {
-      return signedIn()
-        && exists(/databases/$(database)/documents/admins/$(request.auth.uid))
-        && get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.active == true;
-    }
-    match /admins/{uid} {
-      allow get: if signedIn() && request.auth.uid == uid;
-      allow list, create, update, delete: if false;
-    }
-    match /Students/{uid} {
-      allow get: if signedIn() && (request.auth.uid == uid || admin());
-      allow list: if admin();
-      allow create, update, delete: if false;
-    }
-    match /courseCatalog/{courseId} {
-      allow get, list: if admin() || (signedIn()
-        && exists(/databases/$(database)/documents/Students/$(request.auth.uid))
-        && get(/databases/$(database)/documents/Students/$(request.auth.uid)).data.active == true);
-      allow create, update, delete: if false;
-    }
-    match /deviceLocks/{uid} {
-      allow get: if admin();
-      allow list, create, update, delete: if false;
-    }
-    match /auditLogs/{id} {
-      allow read, write: if false;
-    }
+    // Portal data is only accessed by the server after role and device checks.
     match /{document=**} {
       allow read, write: if false;
     }

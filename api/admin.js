@@ -1,51 +1,116 @@
 'use strict';
-const {services,identity,response,error,method,str}=require('./_firebase');
-module.exports=async function(req,res){
- try{
-  method(req);
-  const admin=await identity(req,{requireAdmin:true});
-  const {auth,db,field}=services();
-  const {action,uid,email,name,active,nodeIndex,lectureIndex,locked}=req.body||{};
-  if(action==='listStudents'){
-   const snap=await db.collection('Students').limit(200).get();
-   return response(res,200,{students:snap.docs.map(d=>({uid:d.id,name:d.data().name||'',active:d.data().active===true,role:d.data().role||''}))});
+const {services, identity, response, error, method, str} = require('../server/firebase');
+const {deny} = require('../server/student-access');
+const titles = require('../course-data');
+
+module.exports = async function(req, res) {
+  try {
+    method(req);
+    const admin = await identity(req, {requireAdmin: true});
+    const {auth, db, field} = services();
+    const {action, uid, email, name, active, nodeIndex, lectureIndex, locked} = req.body || {};
+    const catalog = db.doc('courseCatalog/batch1');
+    const audit = (target, details = {}) => ({
+      action, actor: admin.uid, target, ...details, at: field.serverTimestamp()
+    });
+    const auditRef = () => db.collection('auditLogs').doc();
+
+    if (action === 'listStudents') {
+      const [students, catalogDoc, devices] = await Promise.all([
+        db.collection('Students').where('role', '==', 'student').get(),
+        catalog.get(),
+        db.collection('deviceLocks').get()
+      ]);
+      const registered = new Set(devices.docs.filter(doc => doc.data().hash).map(doc => doc.id));
+      return response(res, 200, {
+        students: students.docs.map(doc => ({
+          uid: doc.id, name: doc.data().name || '', email: doc.data().email || '',
+          active: doc.data().active === true, registered: registered.has(doc.id)
+        })),
+        lectureLocks: catalogDoc.data()?.lectureLocks || {}
+      });
+    }
+
+    // Preview deploys may display connected data but cannot mutate the shared project.
+    if (process.env.VERCEL_ENV === 'preview') deny(403, 'Shared Firebase changes are disabled in Vercel previews.');
+
+    if (action === 'createStudent') {
+      const cleanEmail = str(email, 254)?.toLowerCase();
+      const cleanName = str(name, 120);
+      if (!cleanName || !cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+        deny(400, 'Enter a valid student name and email.');
+      }
+      let user;
+      try {
+        user = await auth.createUser({email: cleanEmail, displayName: cleanName});
+      } catch (err) {
+        if (err.code === 'auth/email-already-exists') deny(409, 'An account already uses this email.');
+        throw err;
+      }
+      let setupLink;
+      try {
+        setupLink = await auth.generatePasswordResetLink(cleanEmail);
+        const batch = db.batch();
+        batch.create(db.collection('Students').doc(user.uid), {
+          name: cleanName, email: cleanEmail, role: 'student', active: true, createdAt: field.serverTimestamp()
+        });
+        batch.create(auditRef(), audit(user.uid));
+        await batch.commit();
+      } catch (err) {
+        await auth.deleteUser(user.uid);
+        throw err;
+      }
+      return response(res, 201, {uid: user.uid, setupLink});
+    }
+
+    if (action === 'setLectureLock') {
+      if (!Number.isInteger(nodeIndex) || !Number.isInteger(lectureIndex) ||
+          lectureIndex < 0 || !titles[nodeIndex]?.[lectureIndex + 1] || typeof locked !== 'boolean') {
+        deny(400, 'Invalid lecture selection.');
+      }
+      const batch = db.batch();
+      batch.set(catalog, {lectureLocks: {[nodeIndex + ':' + lectureIndex]: locked}}, {merge: true});
+      batch.create(auditRef(), audit('batch1', {nodeIndex, lectureIndex, locked}));
+      await batch.commit();
+      return response(res, 200, {ok: true});
+    }
+
+    if (!['setStudentActive', 'passwordResetLink', 'resetDevice'].includes(action)) {
+      deny(400, 'Unknown action.');
+    }
+    if (typeof uid !== 'string' || !/^[^/]{1,128}$/.test(uid) || uid === '.' || uid === '..') {
+      deny(400, 'Invalid student.');
+    }
+
+    const studentRef = db.collection('Students').doc(uid);
+    const adminRef = db.collection('admins').doc(uid);
+    const deviceRef = db.collection('deviceLocks').doc(uid);
+    function checkTarget(student, adminDoc) {
+      if (adminDoc.exists || student.data()?.role !== 'student') deny(404, 'Student not found.');
+    }
+
+    if (action === 'passwordResetLink') {
+      const [student, adminDoc] = await db.getAll(studentRef, adminRef);
+      checkTarget(student, adminDoc);
+      const account = await auth.getUser(uid);
+      const setupLink = await auth.generatePasswordResetLink(account.email);
+      await auditRef().create(audit(uid));
+      return response(res, 200, {setupLink});
+    }
+
+    if (action === 'setStudentActive' && typeof active !== 'boolean') deny(400, 'Invalid account status.');
+    await db.runTransaction(async tx => {
+      const [student, adminDoc] = await tx.getAll(studentRef, adminRef);
+      checkTarget(student, adminDoc);
+      if (action === 'setStudentActive') {
+        tx.update(studentRef, {active});
+      } else {
+        tx.set(deviceRef, {minAuthTime: Math.floor(Date.now() / 1000) + 1});
+      }
+      tx.create(auditRef(), audit(uid, action === 'setStudentActive' ? {active} : {}));
+    });
+    return response(res, 200, {ok: true});
+  } catch (err) {
+    error(res, err);
   }
-  if(action==='createStudent'){
-   const cleanEmail=str(email,320),cleanName=str(name,120);
-   if(!cleanEmail||!cleanName||!/^\S+@\S+\.\S+$/.test(cleanEmail))return response(res,400,{error:'Valid email and name required'});
-   const user=await auth.createUser({email:cleanEmail,displayName:cleanName,disabled:false});
-   try{await db.doc('Students/'+user.uid).set({name:cleanName,role:'student',active:true,mustChangePassword:true,createdAt:field.serverTimestamp()})}
-   catch(e){await auth.deleteUser(user.uid);throw e}
-   await db.collection('auditLogs').add({action,actor:admin.uid,target:user.uid,at:field.serverTimestamp()});
-   const setupLink=await auth.generatePasswordResetLink(cleanEmail);return response(res,200,{uid:user.uid,setupLink,notice:'Send this one-time password setup link to the intended student securely. Do not post it publicly.'});
-  }
-  if(action==='passwordResetLink'){const cleanUid=str(uid,128);if(!cleanUid)return response(res,400,{error:'Invalid UID'});const student=await db.doc('Students/'+cleanUid).get();if(!student.exists)return response(res,404,{error:'Student not found'});const account=await auth.getUser(cleanUid);const setupLink=await auth.generatePasswordResetLink(account.email);await db.collection('auditLogs').add({action,actor:admin.uid,target:cleanUid,at:field.serverTimestamp()});return response(res,200,{setupLink});}
-  if(action==='setStudentActive'){
-   if(!str(uid,128)||typeof active!=='boolean')return response(res,400,{error:'Invalid request'});
-   const ref=db.doc('Students/'+uid);if(!(await ref.get()).exists)return response(res,404,{error:'Student not found'});
-   await ref.update({active});await auth.updateUser(uid,{disabled:!active});
-   await db.collection('auditLogs').add({action,actor:admin.uid,target:uid,active,at:field.serverTimestamp()});
-   return response(res,200,{ok:true});
-  }
-  if(action==='removeStudent'){
-   if(!str(uid,128))return response(res,400,{error:'Invalid UID'});
-   await auth.deleteUser(uid).catch(e=>{if(e.code!=='auth/user-not-found')throw e});
-   await db.doc('Students/'+uid).delete();await db.doc('deviceLocks/'+uid).delete();
-   await db.collection('auditLogs').add({action,actor:admin.uid,target:uid,at:field.serverTimestamp()});
-   return response(res,200,{ok:true});
-  }
-  if(action==='resetDevice'){
-   if(!str(uid,128))return response(res,400,{error:'Invalid UID'});
-   await db.doc('deviceLocks/'+uid).delete();
-   await db.collection('auditLogs').add({action,actor:admin.uid,target:uid,at:field.serverTimestamp()});
-   return response(res,200,{ok:true});
-  }
-  if(action==='setLectureLock'){
-   if(!Number.isInteger(nodeIndex)||nodeIndex<0||nodeIndex>=11||!Number.isInteger(lectureIndex)||lectureIndex<0||lectureIndex>=2||typeof locked!=='boolean')return response(res,400,{error:'Invalid lecture selection'});
-   const ref=db.doc('courseCatalog/batch1');await db.runTransaction(async tx=>{const snap=await tx.get(ref);const existing=snap.exists?snap.data().lectureLocks||{}:{};tx.set(ref,{lectureLocks:{...existing,[nodeIndex+':'+lectureIndex]:locked},updatedAt:field.serverTimestamp()},{merge:true});});
-   await db.collection('auditLogs').add({action,actor:admin.uid,nodeIndex,lectureIndex,locked,at:field.serverTimestamp()});
-   return response(res,200,{ok:true});
-  }
-  return response(res,400,{error:'Unknown action'});
- }catch(e){error(res,e)}
 };
