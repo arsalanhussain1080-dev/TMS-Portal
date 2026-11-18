@@ -2,6 +2,7 @@
 const {services, identity, response, error, method, str} = require('../server/firebase');
 const {deny} = require('../server/student-access');
 const titles = require('../course-data');
+const {mediaDocument, mediaInput} = require('../server/lecture-media');
 
 module.exports = async function(req, res) {
   try {
@@ -15,11 +16,13 @@ module.exports = async function(req, res) {
     });
     const auditRef = () => db.collection('auditLogs').doc();
 
+    const media = mediaDocument(db);
     if (action === 'listStudents') {
-      const [students, catalogDoc, devices] = await Promise.all([
+      const [students, catalogDoc, devices, mediaDoc] = await Promise.all([
         db.collection('Students').where('role', '==', 'student').get(),
         catalog.get(),
-        db.collection('deviceLocks').get()
+        db.collection('deviceLocks').get(),
+        media.get()
       ]);
       const registered = new Set(devices.docs.filter(doc => doc.data().hash).map(doc => doc.id));
       return response(res, 200, {
@@ -27,11 +30,27 @@ module.exports = async function(req, res) {
           uid: doc.id, name: doc.data().name || '', email: doc.data().email || '',
           active: doc.data().active === true, registered: registered.has(doc.id)
         })),
-        lectureLocks: catalogDoc.data()?.lectureLocks || {}
+        lectureLocks: catalogDoc.data()?.lectureLocks || {},
+        lectureMedia: mediaDoc.data() || {}
       });
     }
 
-    // Preview deploys may display connected data but cannot mutate the shared project.
+    if (action === 'setLectureMedia') {
+      if (!Number.isInteger(nodeIndex) || !Number.isInteger(lectureIndex) ||
+          lectureIndex < 0 || !titles[nodeIndex]?.[lectureIndex + 1]) {
+        deny(400, 'Invalid lecture selection.');
+      }
+      const {provider, videoId, privacyHash} = req.body;
+      const source = provider === '' ? null : mediaInput(provider, videoId, privacyHash);
+      const lectureKey = nodeIndex + ':' + lectureIndex;
+      const batch = db.batch();
+      batch.set(media, {[lectureKey]: source}, {mergeFields: [lectureKey]});
+      batch.create(media.collection('audit').doc(), audit(lectureKey, {provider: source?.provider || null}));
+      await batch.commit();
+      return response(res, 200, {ok: true});
+    }
+
+    // Preview media assignments use a dedicated document. Other writes remain disabled.
     if (process.env.VERCEL_ENV === 'preview') deny(403, 'Shared Firebase changes are disabled in Vercel previews.');
 
     if (action === 'createStudent') {

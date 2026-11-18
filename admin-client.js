@@ -98,6 +98,49 @@ function studentRow(student, summary, ...buttons) {
   return row;
 }
 
+function lectureMediaEditor(nodeIndex, lectureIndex, lecture) {
+  const source = data.lectureMedia?.[nodeIndex + ':' + lectureIndex];
+  const editor = element('form', 'actions media-editor');
+  const provider = element('select');
+  provider.setAttribute('aria-label', 'Video provider for ' + lecture);
+  for (const [value, label] of Object.entries({
+    '': 'No video', bunny: 'Bunny.net', youtube: 'YouTube', vimeo: 'Vimeo', vdocipher: 'VdoCipher'
+  })) {
+    const option = element('option', '', label);
+    option.value = value;
+    provider.append(option);
+  }
+  provider.value = source?.provider || '';
+  const videoId = element('input');
+  videoId.placeholder = 'Video ID';
+  videoId.setAttribute('aria-label', 'Video ID for ' + lecture);
+  videoId.value = source?.videoId || '';
+  videoId.maxLength = 64;
+  const hash = element('input');
+  hash.placeholder = 'Vimeo unlisted hash';
+  hash.setAttribute('aria-label', hash.placeholder);
+  hash.value = source?.privacyHash || '';
+  hash.maxLength = 64;
+  const save = element('button', 'btn', 'Save video');
+  save.type = 'submit';
+  function updateFields() {
+    videoId.disabled = !provider.value;
+    videoId.required = Boolean(provider.value);
+    hash.hidden = hash.disabled = provider.value !== 'vimeo';
+  }
+  updateFields();
+  provider.onchange = updateFields;
+  editor.onsubmit = event => {
+    event.preventDefault();
+    change('setLectureMedia', {
+      nodeIndex, lectureIndex, provider: provider.value, videoId: videoId.value,
+      privacyHash: hash.disabled ? '' : hash.value
+    }, save);
+  };
+  editor.append(provider, videoId, hash, save);
+  return editor;
+}
+
 function render() {
   byId('total').textContent = data.students.length;
   byId('active').textContent = data.students.filter(student => student.active).length;
@@ -126,6 +169,7 @@ function render() {
       const row = element('div', 'item');
       row.append(element('strong', '', lecture), actionButton(locked ? 'Unlock' : 'Lock', button =>
         change('setLectureLock', {nodeIndex, lectureIndex, locked: !locked}, button)));
+      row.append(lectureMediaEditor(nodeIndex, lectureIndex, lecture));
       group.append(row);
     });
     return group;

@@ -75,7 +75,9 @@ async function openLecture(nodeIndex, lectureIndex) {
     const {embedUrl} = await request('/api/video', {nodeIndex, lectureIndex, deviceSecret});
     if (generation !== session || requestId !== playbackRequest) return;
     const url = new URL(embedUrl);
-    if (url.origin !== 'https://iframe.mediadelivery.net') throw new Error('Video playback is unavailable.');
+    const allowedOrigins = ['https://iframe.mediadelivery.net', 'https://www.youtube-nocookie.com',
+      'https://player.vimeo.com', 'https://player.vdocipher.com'];
+    if (!allowedOrigins.includes(url.origin)) throw new Error('Video playback is unavailable.');
     const frame = document.createElement('iframe');
     frame.src = url.href;
     frame.title = titles[nodeIndex][lectureIndex + 1];

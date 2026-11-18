@@ -1,8 +1,8 @@
 'use strict';
-const {createHash} = require('node:crypto');
-const {response, error, method} = require('../server/firebase');
+const {services, response, error, method} = require('../server/firebase');
 const {studentAccess, deny} = require('../server/student-access');
 const titles = require('../course-data');
+const {mediaDocument, mediaInput, embedUrl} = require('../server/lecture-media');
 
 module.exports = async function(req, res) {
   try {
@@ -13,25 +13,19 @@ module.exports = async function(req, res) {
       deny(400, 'Invalid lecture.');
     }
     const locks = await studentAccess(req, {readCatalog: true});
-    if (locks[nodeIndex + ':' + lectureIndex] === true) deny(403, 'This lecture is locked.');
-    const libraryId = process.env.BUNNY_STREAM_LIBRARY_ID;
-    const tokenKey = process.env.BUNNY_STREAM_EMBED_TOKEN_KEY?.trim();
-    if (!/^[0-9]+$/.test(libraryId || '') || !tokenKey) {
-      deny(503, 'Video playback is temporarily unavailable.');
-    }
+    const lectureKey = nodeIndex + ':' + lectureIndex;
+    if (locks[lectureKey] === true) deny(403, 'This lecture is locked.');
 
-    const videos = JSON.parse(process.env.BUNNY_STREAM_VIDEO_IDS || '{}');
-    const videoId = videos?.[nodeIndex + ':' + lectureIndex];
-    if (videoId === undefined) deny(404, 'A video has not been assigned to this lecture.');
-    if (typeof videoId !== 'string' || !/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(videoId)) {
-      deny(503, 'Video playback is temporarily unavailable.');
+    const {db} = services();
+    const media = (await mediaDocument(db).get()).data() || {};
+    let source = media[lectureKey];
+    if (source === undefined) {
+      const legacy = JSON.parse(process.env.BUNNY_STREAM_VIDEO_IDS || '{}')?.[lectureKey];
+      if (legacy) source = {provider: 'bunny', videoId: legacy};
     }
-
-    const expires = Math.floor(Date.now() / 1000) + 300;
-    const token = createHash('sha256').update(tokenKey + videoId + expires).digest('hex');
-    const url = new URL('https://iframe.mediadelivery.net/embed/' + libraryId + '/' + videoId);
-    url.search = new URLSearchParams({token, expires: String(expires), autoplay: 'true'});
-    return response(res, 200, {embedUrl: url.href});
+    if (!source) deny(404, 'A video has not been assigned to this lecture.');
+    const validSource = mediaInput(source.provider, source.videoId, source.privacyHash);
+    return response(res, 200, {embedUrl: await embedUrl(validSource)});
   } catch (err) {
     error(res, err);
   }
