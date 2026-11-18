@@ -61,17 +61,17 @@ function showSetupLink(link) {
   byId('setup-link').replaceChildren(element('p', '', 'One-time password setup link. Share privately.'), field, copy);
 }
 
-async function change(action, payload, control) {
+async function change(action, payload, control, message = feedback) {
   if (!authorized || busy) return;
   const session = generation;
   busy = control.disabled = true;
   byId('setup-link').replaceChildren();
-  feedback.textContent = 'Saving…';
+  message.textContent = 'Saving…';
   try {
     const result = await request('/api/admin', {action, ...payload});
     if (session !== generation) return;
     if (result.setupLink) showSetupLink(result.setupLink);
-    feedback.textContent = 'Saved.';
+    message.textContent = 'Saved.';
     if (action !== 'passwordResetLink') {
       const updated = await request('/api/admin', {action: 'listStudents'});
       if (session !== generation) return;
@@ -80,7 +80,7 @@ async function change(action, payload, control) {
     }
     return true;
   } catch (err) {
-    if (session === generation) feedback.textContent = err.message;
+    if (session === generation) message.textContent = err.message;
   } finally {
     if (session === generation) busy = false;
     control.disabled = false;
@@ -96,6 +96,51 @@ function studentRow(student, summary, ...buttons) {
   actions.append(...buttons);
   row.append(info, actions);
   return row;
+}
+
+function editStudentLectures(student) {
+  const dialog = element('dialog', 'access-dialog');
+  const heading = element('h2', '', 'Lecture access · ' + (student.name || student.email || 'Student'));
+  heading.id = 'access-dialog-title';
+  dialog.setAttribute('aria-labelledby', heading.id);
+  const message = element('p');
+  message.setAttribute('role', 'status');
+  dialog.append(heading, element('p', '', 'Lectures locked for the whole course stay locked for this student.'));
+  const checkboxes = [];
+  const granted = new Set(student.lectureAccess);
+  const list = element('div', 'access-list');
+  window.TMS_COURSE_TITLES.forEach(([node, ...lectures], nodeIndex) => {
+    const group = element('fieldset');
+    group.append(element('legend', '', node));
+    lectures.forEach((title, lectureIndex) => {
+      const key = nodeIndex + ':' + lectureIndex;
+      const input = element('input');
+      input.type = 'checkbox';
+      input.value = key;
+      input.checked = granted.has(key);
+      checkboxes.push(input);
+      const label = element('label', 'access-choice');
+      const suffix = data.lectureLocks[key] ? ' (course locked)' : '';
+      label.append(input, document.createTextNode(title + suffix));
+      group.append(label);
+    });
+    list.append(group);
+  });
+  const actions = element('div', 'actions');
+  const save = actionButton('Save access', async button => {
+    const lectures = checkboxes.filter(input => input.checked).map(input => input.value);
+    if (await change('setStudentLectureAccess', {uid: student.uid, lectures}, button, message)) {
+      feedback.textContent = 'Lecture access saved.';
+      dialog.close();
+    }
+  });
+  actions.append(actionButton('Select all', () => checkboxes.forEach(input => {input.checked = true;})),
+    actionButton('Clear all', () => checkboxes.forEach(input => {input.checked = false;})),
+    save, actionButton('Close', () => dialog.close()));
+  dialog.append(list, message, actions);
+  dialog.addEventListener('close', () => dialog.remove(), {once: true});
+  document.body.append(dialog);
+  dialog.showModal();
 }
 
 function lectureMediaEditor(nodeIndex, lectureIndex, lecture) {
@@ -151,7 +196,10 @@ function render() {
   }
   for (const student of data.students) {
     const {uid, active, registered} = student;
-    byId('student-list').append(studentRow(student, active ? 'Active' : 'Suspended',
+    const accessCount = student.lectureAccess.length;
+    const summary = (active ? 'Active' : 'Suspended') + ' · ' + accessCount + ' lectures granted';
+    byId('student-list').append(studentRow(student, summary,
+      actionButton('Lecture access', () => editStudentLectures(student)),
       actionButton(active ? 'Suspend' : 'Activate', button =>
         change('setStudentActive', {uid, active: !active}, button)),
       actionButton('Password setup link', button => change('passwordResetLink', {uid}, button))));
@@ -179,6 +227,7 @@ function render() {
 
 watch(async account => {
   const session = ++generation;
+  document.querySelector('.access-dialog')?.close();
   authorized = busy = false;
   data = undefined;
   navigate(null);

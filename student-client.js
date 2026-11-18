@@ -82,8 +82,23 @@ async function openLecture(nodeIndex, lectureIndex) {
     frame.src = url.href;
     frame.title = titles[nodeIndex][lectureIndex + 1];
     frame.allow = 'autoplay; encrypted-media; picture-in-picture';
-    frame.allowFullscreen = true;
-    player.replaceChildren(frame);
+    const watermark = document.createElement('span');
+    watermark.className = 'player-watermark';
+    watermark.textContent = user()?.email || user()?.uid || '';
+    const fullscreen = document.createElement('button');
+    fullscreen.type = 'button';
+    fullscreen.className = 'player-fullscreen';
+    fullscreen.textContent = 'Full screen';
+    fullscreen.hidden = !document.fullscreenEnabled;
+    fullscreen.onclick = async () => {
+      try {
+        if (document.fullscreenElement === player) await document.exitFullscreen();
+        else await player.requestFullscreen();
+      } catch {
+        feedback.textContent = 'Full screen is unavailable in this browser.';
+      }
+    };
+    player.replaceChildren(frame, watermark, fullscreen);
   } catch (err) {
     if (generation === session && requestId === playbackRequest) player.textContent = err.message;
   }

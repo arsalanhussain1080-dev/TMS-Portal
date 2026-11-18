@@ -1,6 +1,7 @@
 'use strict';
 const {createHash} = require('node:crypto');
 const {services, identity} = require('./firebase');
+const {accessCollection, deviceCollection, effectiveLocks} = require('./lecture-access');
 
 function deny(status, message) {
   throw Object.assign(new Error(message), {status});
@@ -16,7 +17,7 @@ async function studentAccess(req, {enroll = false, readCatalog = false} = {}) {
   const {db, field} = services();
   return db.runTransaction(async tx => {
     const studentRef = db.collection('Students').doc(user.uid);
-    const deviceRef = db.collection('deviceLocks').doc(user.uid);
+    const deviceRef = deviceCollection(db).doc(user.uid);
     const [student, device] = await tx.getAll(studentRef, deviceRef);
     if (student.data()?.active !== true || student.data().role !== 'student') {
       deny(403, 'Student access is suspended or unavailable.');
@@ -29,11 +30,13 @@ async function studentAccess(req, {enroll = false, readCatalog = false} = {}) {
       deny(403, 'Another browser is registered. Contact your admin for a reset.');
     }
     if (!binding?.hash && !enroll) deny(403, 'Sign in on this browser to register it.');
-    const catalog = readCatalog ? await tx.get(db.doc('courseCatalog/batch1')) : null;
+    const [catalog, access] = readCatalog
+      ? await tx.getAll(db.doc('courseCatalog/batch1'), accessCollection(db).doc(user.uid))
+      : [];
     if (enroll && !binding?.hash) {
       tx.set(deviceRef, {hash, registeredAt: field.serverTimestamp()}, {merge: true});
     }
-    return catalog?.data()?.lectureLocks || {};
+    return readCatalog ? effectiveLocks(catalog.data()?.lectureLocks || {}, access.data()) : {};
   });
 }
 
