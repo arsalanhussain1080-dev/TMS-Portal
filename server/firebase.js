@@ -15,6 +15,7 @@ function app() {
     return admin.initializeApp({credential:admin.credential.cert({projectId,clientEmail,privateKey}),projectId});
   } catch (err) {
     if (err.code === 'app/invalid-credential') {
+      console.error('TMS Firebase Admin initialization failure:', err.code, String(err.message || '').slice(0, 500));
       throw Object.assign(new Error('Firebase service-account credentials are invalid. Verify the Vercel client email and private key belong to the same active service account.'), {status: 503});
     }
     throw err;
@@ -30,6 +31,7 @@ async function identity(req,{requireAdmin=false}={}) {
     token = await auth.verifyIdToken(header.slice(7), true);
   } catch (error) {
     if (error.code === 'app/invalid-credential') {
+      console.error('TMS Firebase Admin verification failure:', error.code, String(error.message || '').slice(0, 500));
       throw Object.assign(new Error('Firebase Admin credentials were rejected. Check the service-account email and private key in Vercel.'), {status: 503});
     }
     if (!['auth/id-token-expired', 'auth/id-token-revoked', 'auth/argument-error', 'auth/invalid-id-token', 'auth/user-disabled', 'auth/user-not-found'].includes(error.code)) throw error;
