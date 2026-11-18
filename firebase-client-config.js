@@ -1,6 +1,6 @@
 /* Firebase public web app config for TMS project tss-admin-portal-1f3fa. No admin secrets here. */
 window.TMS_FIREBASE_CONFIG = {
-  apiKey: "AIzaSyCF7fhmA6Mmf bWkoMnDd3mW2r95VMLJXh8".replace(" ",""),
+  apiKey: "AIzaSyCF7fhmA6MmfbWkoMmDd3mW2r95VMLJXh8",
   authDomain: "tss-admin-portal-1f3fa.firebaseapp.com",
   projectId: "tss-admin-portal-1f3fa",
   storageBucket: "tss-admin-portal-1f3fa.firebasestorage.app",
