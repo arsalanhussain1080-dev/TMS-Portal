@@ -12,7 +12,7 @@ module.exports = async function(req, res) {
         lectureIndex < 0 || !titles[nodeIndex]?.[lectureIndex + 1]) {
       deny(400, 'Invalid lecture.');
     }
-    const locks = await studentAccess(req, {readCatalog: true});
+    const {locks, student} = await studentAccess(req, {readCatalog: true, includeProfile: true});
     const lectureKey = nodeIndex + ':' + lectureIndex;
     if (locks[lectureKey] === true) deny(403, 'This lecture is locked.');
 
@@ -25,7 +25,7 @@ module.exports = async function(req, res) {
     }
     if (!source) deny(404, 'A video has not been assigned to this lecture.');
     const validSource = mediaInput(source.provider, source.videoId, source.privacyHash);
-    return response(res, 200, {embedUrl: await embedUrl(validSource)});
+    return response(res, 200, {embedUrl: await embedUrl(validSource), student});
   } catch (err) {
     error(res, err);
   }

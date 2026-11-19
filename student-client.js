@@ -22,7 +22,10 @@ function show(view) {
   if (view !== 'player') {
     playbackRequest++;
     activeLecture = undefined;
-    document.querySelector('.video').replaceChildren();
+    const player = document.querySelector('.video');
+    player.classList.remove('player-expanded');
+    if (document.fullscreenElement === player) document.exitFullscreen().catch(() => {});
+    player.replaceChildren();
   }
 }
 
@@ -72,7 +75,7 @@ async function openLecture(nodeIndex, lectureIndex) {
   player.textContent = 'Checking lecture access…';
   show('player');
   try {
-    const {embedUrl} = await request('/api/video', {nodeIndex, lectureIndex, deviceSecret});
+    const {embedUrl, student} = await request('/api/video', {nodeIndex, lectureIndex, deviceSecret});
     if (generation !== session || requestId !== playbackRequest) return;
     const url = new URL(embedUrl);
     const allowedOrigins = ['https://iframe.mediadelivery.net', 'https://www.youtube-nocookie.com',
@@ -84,18 +87,29 @@ async function openLecture(nodeIndex, lectureIndex) {
     frame.allow = 'autoplay; encrypted-media; picture-in-picture';
     const watermark = document.createElement('span');
     watermark.className = 'player-watermark';
-    watermark.textContent = user()?.email || user()?.uid || '';
+    const name = document.createElement('strong');
+    name.textContent = student?.name || 'TMS Student';
+    const email = document.createElement('span');
+    email.textContent = student?.email || user()?.email || '';
+    watermark.append(name, email);
     const fullscreen = document.createElement('button');
     fullscreen.type = 'button';
     fullscreen.className = 'player-fullscreen';
     fullscreen.textContent = 'Full screen';
-    fullscreen.hidden = !document.fullscreenEnabled;
+    fullscreen.setAttribute('aria-label', 'Toggle full screen');
     fullscreen.onclick = async () => {
-      try {
-        if (document.fullscreenElement === player) await document.exitFullscreen();
-        else await player.requestFullscreen();
-      } catch {
-        feedback.textContent = 'Full screen is unavailable in this browser.';
+      if (player.classList.contains('player-expanded')) {
+        player.classList.remove('player-expanded');
+      } else if (document.fullscreenElement === player) {
+        await document.exitFullscreen();
+      } else if (!document.fullscreenEnabled || !player.requestFullscreen) {
+        player.classList.add('player-expanded');
+      } else {
+        try {
+          await player.requestFullscreen();
+        } catch {
+          if (player.contains(fullscreen)) player.classList.add('player-expanded');
+        }
       }
     };
     player.replaceChildren(frame, watermark, fullscreen);

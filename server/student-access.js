@@ -7,7 +7,7 @@ function deny(status, message) {
   throw Object.assign(new Error(message), {status});
 }
 
-async function studentAccess(req, {enroll = false, readCatalog = false} = {}) {
+async function studentAccess(req, {enroll = false, readCatalog = false, includeProfile = false} = {}) {
   const user = await identity(req);
   const secret = req.body?.deviceSecret;
   if (typeof secret !== 'string' || !/^[0-9a-f]{64}$/.test(secret)) {
@@ -19,7 +19,8 @@ async function studentAccess(req, {enroll = false, readCatalog = false} = {}) {
     const studentRef = db.collection('Students').doc(user.uid);
     const deviceRef = deviceCollection(db).doc(user.uid);
     const [student, device] = await tx.getAll(studentRef, deviceRef);
-    if (student.data()?.active !== true || student.data().role !== 'student' || student.data().archived === true) {
+    const profile = student.data();
+    if (profile?.active !== true || profile.role !== 'student' || profile.archived === true) {
       deny(403, 'Student access is suspended or unavailable.');
     }
     const binding = device.data();
@@ -36,7 +37,15 @@ async function studentAccess(req, {enroll = false, readCatalog = false} = {}) {
     if (enroll && !binding?.hash) {
       tx.set(deviceRef, {hash, registeredAt: field.serverTimestamp()}, {merge: true});
     }
-    return readCatalog ? effectiveLocks(catalog.data()?.lectureLocks || {}, access.data()) : {};
+    const locks = readCatalog ? effectiveLocks(catalog.data()?.lectureLocks || {}, access.data()) : {};
+    if (!includeProfile) return locks;
+    return {
+      locks,
+      student: {
+        name: profile.name?.trim() || user.name || 'TMS Student',
+        email: user.email || profile.email || ''
+      }
+    };
   });
 }
 
