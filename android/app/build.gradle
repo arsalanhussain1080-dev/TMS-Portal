@@ -28,14 +28,4 @@ android {
             if (releaseKeystore) signingConfig signingConfigs.release
         }
     }
-    sourceSets {
-        main.res.srcDir(layout.buildDirectory.dir('generated/tmsResources').get().asFile)
-    }
 }
-
-def prepareLauncherIcon = tasks.register('prepareLauncherIcon', Copy) {
-    from(rootProject.file('../icon-192x192.png'))
-    into(layout.buildDirectory.dir('generated/tmsResources/mipmap-xxxhdpi'))
-    rename { 'tms_launcher.png' }
-}
-tasks.named('preBuild').configure { dependsOn prepareLauncherIcon }
