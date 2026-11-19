@@ -1,0 +1,38 @@
+name: TMS
+options:
+  deploymentTarget:
+    iOS: "16.0"
+targets:
+  TMSStudent:
+    type: application
+    platform: iOS
+    sources:
+      - Portal.swift
+      - StudentAssets.xcassets
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.themysterysyndicate.student
+        INFOPLIST_KEY_CFBundleDisplayName: TMS Student
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        MARKETING_VERSION: "1.0"
+        CURRENT_PROJECT_VERSION: 1
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        SWIFT_VERSION: "5.0"
+  TMSAdmin:
+    type: application
+    platform: iOS
+    sources:
+      - Portal.swift
+      - AdminAssets.xcassets
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.themysterysyndicate.admin
+        INFOPLIST_KEY_CFBundleDisplayName: TMS Admin
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        MARKETING_VERSION: "1.0"
+        CURRENT_PROJECT_VERSION: 1
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        SWIFT_VERSION: "5.0"
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: TMS_ADMIN

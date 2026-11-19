@@ -1,0 +1,55 @@
+name: TMS Windows and iOS
+on:
+  push:
+    branches: [feature/tms-secure-admin-student]
+    paths: ['desktop/**', 'ios/**', '.github/workflows/tms-native-apps.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Build both Windows installers
+        shell: pwsh
+        run: |
+          $compiler = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (!(Test-Path $compiler)) {
+            choco install innosetup --yes --no-progress
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          }
+          foreach ($role in @('Student', 'Admin')) {
+            dotnet clean desktop/TmsDesktop.csproj -c Release "-p:PortalRole=$role"
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+            dotnet build desktop/TmsDesktop.csproj -c Release "-p:PortalRole=$role"
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+            & $compiler "/DPortalRole=$role" desktop/setup.iss
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+            Remove-Item desktop/bin/Release/net48 -Recurse -Force
+          }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TMS-Windows-Installers
+          path: build/windows/*.exe
+          if-no-files-found: error
+  ios:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build both iPhone apps without signing
+        run: |
+          command -v xcodegen >/dev/null || brew install xcodegen
+          cd ios
+          xcodegen generate
+          for scheme in TMSStudent TMSAdmin; do
+            xcodebuild -scheme "$scheme" -configuration Release -sdk iphoneos -derivedDataPath "$RUNNER_TEMP/tms-$scheme" CODE_SIGNING_ALLOWED=NO build -quiet
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TMS-iOS-Unsigned-Builds
+          path: ${{ runner.temp }}/tms-*/Build/Products/Release-iphoneos/*.app/
+          if-no-files-found: error
