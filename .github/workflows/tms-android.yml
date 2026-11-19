@@ -38,13 +38,28 @@ jobs:
             gradle -p android --no-daemon assembleRelease
             cp android/app/build/outputs/apk/release/app-release.apk "${RUNNER_TEMP}/tms-apk/TMS-Student.apk"
           else
-            gradle -p android --no-daemon assembleDebug
+            gradle -p android --no-daemon assembleDebug assembleRelease
             cp android/app/build/outputs/apk/debug/app-debug.apk "${RUNNER_TEMP}/tms-apk/TMS-Student-Test.apk"
           fi
           apksigner="$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -n 1)"
           "$apksigner" verify "$RUNNER_TEMP"/tms-apk/*.apk
+          if [[ -f android/app/build/outputs/apk/release/app-release-unsigned.apk ]]; then
+            mkdir -p "$RUNNER_TEMP/tms-release-input"
+            unsigned=android/app/build/outputs/apk/release/app-release-unsigned.apk
+            "$(dirname "$apksigner")/aapt" dump badging "$unsigned" > "$RUNNER_TEMP/tms-release-input/manifest.txt"
+            if grep -q "^application-debuggable" "$RUNNER_TEMP/tms-release-input/manifest.txt"; then exit 1; fi
+            cp "$unsigned" "$RUNNER_TEMP/tms-release-input/TMS-Student-unsigned.apk"
+            cp "$(dirname "$apksigner")/lib/apksigner.jar" "$RUNNER_TEMP/tms-release-input/"
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: TMS-Student-APK
           path: ${{ runner.temp }}/tms-apk/*.apk
           if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: ${{ success() && hashFiles('android/app/build/outputs/apk/release/app-release-unsigned.apk') != '' }}
+        with:
+          name: TMS-Android-Release-Inputs
+          path: ${{ runner.temp }}/tms-release-input/
+          if-no-files-found: error
+          retention-days: 3
