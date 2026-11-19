@@ -246,6 +246,7 @@ watch(async account => {
   form.hidden = reset.hidden = Boolean(account);
   out.hidden = !account;
   feedback.textContent = '';
+  out.textContent = 'Sign out';
   status.textContent = account ? 'Verifying admin access…' :
     ready ? 'Sign in to manage TMS.' : 'Firebase sign-in is unavailable.';
   if (!account) return;
@@ -260,7 +261,12 @@ watch(async account => {
   } catch (err) {
     if (session !== generation) return;
     status.textContent = 'Admin access unavailable.';
-    feedback.textContent = err.message;
+    if (err.status === 403) {
+      out.textContent = 'Switch account';
+      feedback.textContent = 'This account has no active TMS admin access. Switch to your admin account.';
+    } else {
+      feedback.textContent = err.message;
+    }
   }
 });
 

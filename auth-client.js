@@ -1,10 +1,15 @@
 /* Firebase browser auth integration. This module does not allow demo credentials or offline bypass. */
 import {initializeApp} from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js';
-import {getAuth,connectAuthEmulator,onAuthStateChanged,signInWithEmailAndPassword,signOut,sendPasswordResetEmail} from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js';
+import {initializeAuth,indexedDBLocalPersistence,browserLocalPersistence,connectAuthEmulator,onAuthStateChanged,signInWithEmailAndPassword,signOut,sendPasswordResetEmail} from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js';
 const config=window.TMS_FIREBASE_CONFIG;
 const configured=Boolean(config?.apiKey&&config?.projectId==='tss-admin-portal-1f3fa'&&config?.appId);
 let auth=null;
-if(configured)auth=getAuth(initializeApp(config));
+if (configured) {
+  // Keep the existing Student Portal session and give Admin its own persisted account.
+  const adminPortal = /^\/admin(?:\/|$)/.test(location.pathname);
+  const app = adminPortal ? initializeApp(config, 'tms-admin') : initializeApp(config);
+  auth = initializeAuth(app, {persistence: [indexedDBLocalPersistence, browserLocalPersistence]});
+}
 if (auth && ['localhost', '127.0.0.1'].includes(location.hostname)) {
   connectAuthEmulator(auth, 'http://127.0.0.1:9099', {disableWarnings: true});
 }
@@ -23,7 +28,7 @@ export async function request(path,body,verb='POST'){
  const token=await auth.currentUser.getIdToken();
  const res=await fetch(path,{method:verb,headers:{Authorization:'Bearer '+token,...(verb==='POST'?{'Content-Type':'application/json'}:{})},...(verb==='POST'?{body:JSON.stringify(body||{})}:{})});
  const data=await res.json().catch(()=>({error:'Unexpected server response'}));
- if(!res.ok)throw Error(data.error||'Request failed');
+ if(!res.ok)throw Object.assign(new Error(data.error||'Request failed'), {status:res.status});
  return data;
 }
 

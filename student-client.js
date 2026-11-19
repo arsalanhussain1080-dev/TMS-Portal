@@ -136,6 +136,7 @@ function browserKey(uid) {
   return localStorage.getItem(key);
 }
 
+let deniedSignIn = '';
 watch(async account => {
   const generation = ++session;
   setAccess(false);
@@ -145,7 +146,11 @@ watch(async account => {
   feedback.textContent = '';
   status.textContent = account ? 'Verifying student access…' :
     ready ? 'Sign in to access your course.' : 'Firebase sign-in is unavailable.';
-  if (!account) return;
+  if (!account) {
+    feedback.textContent = deniedSignIn;
+    deniedSignIn = '';
+    return;
+  }
   try {
     deviceSecret = browserKey(account.uid);
     const data = await request('/api/device', {deviceSecret});
@@ -159,6 +164,14 @@ watch(async account => {
     deviceSecret = undefined;
     status.textContent = 'Student access unavailable.';
     feedback.textContent = err.message;
+    if (err.status === 403) {
+      deniedSignIn = err.message;
+      try {
+        await logout();
+      } catch {
+        deniedSignIn = '';
+      }
+    }
   }
 });
 
