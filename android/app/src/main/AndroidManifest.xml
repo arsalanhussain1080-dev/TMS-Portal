@@ -1,7 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
-    <application android:label="TMS Student Portal" android:icon="@mipmap/tms_circle"
-        android:roundIcon="@mipmap/tms_circle"
+    <application android:label="${portalName}" android:icon="${portalIcon}"
+        android:roundIcon="${portalIcon}"
         android:theme="@android:style/Theme.Material.NoActionBar"
         android:allowBackup="false" android:usesCleartextTraffic="false">
         <activity android:name=".PortalActivity" android:exported="true"

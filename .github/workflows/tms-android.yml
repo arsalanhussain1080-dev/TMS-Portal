@@ -63,3 +63,20 @@ jobs:
           path: ${{ runner.temp }}/tms-release-input/
           if-no-files-found: error
           retention-days: 3
+      - name: Build non-debuggable Admin APK
+        run: |
+          gradle -p android --no-daemon -PtmsAdmin=true assembleRelease
+          mkdir -p "$RUNNER_TEMP/tms-admin-input"
+          unsigned=android/app/build/outputs/apk/release/app-release-unsigned.apk
+          signer="$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -n 1)"
+          "$(dirname "$signer")/aapt" dump badging "$unsigned" > "$RUNNER_TEMP/tms-admin-input/manifest.txt"
+          grep -q "^package: name='com.themysterysyndicate.admin'" "$RUNNER_TEMP/tms-admin-input/manifest.txt"
+          if grep -q '^application-debuggable' "$RUNNER_TEMP/tms-admin-input/manifest.txt"; then exit 1; fi
+          cp "$unsigned" "$RUNNER_TEMP/tms-admin-input/TMS-Admin-unsigned.apk"
+          cp "$(dirname "$signer")/lib/apksigner.jar" "$RUNNER_TEMP/tms-admin-input/"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TMS-Admin-Release-Inputs
+          path: ${{ runner.temp }}/tms-admin-input/
+          if-no-files-found: error
+          retention-days: 3

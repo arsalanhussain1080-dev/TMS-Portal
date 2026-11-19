@@ -50,7 +50,7 @@ public final class PortalActivity extends Activity {
                 String path = url.getPath();
                 return !"https".equals(url.getScheme()) || !PORTAL_HOST.equals(url.getHost())
                     || (url.getPort() != -1 && url.getPort() != 443)
-                    || (!"/".equals(path) && !"/index.html".equals(path));
+                    || (!isPortalPath(path));
             }
         });
         portal.setWebChromeClient(new WebChromeClient() {
@@ -75,8 +75,15 @@ public final class PortalActivity extends Activity {
         root.addView(portal, new FrameLayout.LayoutParams(-1, -1));
         setContentView(root);
         if (state == null || portal.restoreState(state) == null) {
-            portal.loadUrl("https://" + PORTAL_HOST + "/");
+            portal.loadUrl("https://" + PORTAL_HOST + (BuildConfig.ADMIN_PORTAL ? "/admin/" : "/"));
         }
+    }
+
+    private boolean isPortalPath(String path) {
+        if (BuildConfig.ADMIN_PORTAL) {
+            return "/admin/".equals(path) || "/admin".equals(path) || "/admin/index.html".equals(path);
+        }
+        return "/".equals(path) || "/index.html".equals(path);
     }
 
     @Override
