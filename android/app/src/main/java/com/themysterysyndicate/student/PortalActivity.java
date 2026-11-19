@@ -34,6 +34,7 @@ public final class PortalActivity extends Activity {
             }
             return insets;
         });
+        WebView.setWebContentsDebuggingEnabled(false);
         portal = new WebView(this);
         WebSettings settings = portal.getSettings();
         settings.setJavaScriptEnabled(true);
