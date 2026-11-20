@@ -1,0 +1,9 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Portal data is only accessed by the server after role and device checks.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

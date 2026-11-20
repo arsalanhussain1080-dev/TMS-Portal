@@ -1,23 +1,24 @@
 {
-  "name": "Trader Sajjad Student Portal",
-  "short_name": "TMS Portal",
+  "id": "/",
+  "name": "TMS Student Portal",
+  "short_name": "TMS Student",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#07080a",
-  "theme_color": "#2563eb",
-  "description": "Official Student Access Portal for TMS Mentorship by Trader Sajjad",
+  "background_color": "#06090f",
+  "theme_color": "#06090f",
   "icons": [
     {
-      "src": "/icon-192x192.png",
+      "src": "/app-icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
-      "src": "/icon-512x512.png",
+      "src": "/app-icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     }
   ]
 }

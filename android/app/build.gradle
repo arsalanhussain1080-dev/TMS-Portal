@@ -1,0 +1,36 @@
+plugins {
+    id 'com.android.application' version '8.7.3'
+}
+
+def releaseKeystore = System.getenv('TMS_ANDROID_KEYSTORE')
+def adminPortal = providers.gradleProperty('tmsAdmin').map { it == 'true' }.getOrElse(false)
+android {
+    buildFeatures { buildConfig true }
+    namespace 'com.themysterysyndicate.student'
+    compileSdk 35
+    defaultConfig {
+        applicationId (adminPortal ? 'com.themysterysyndicate.admin' : 'com.themysterysyndicate.student')
+        buildConfigField 'boolean', 'ADMIN_PORTAL', adminPortal.toString()
+        manifestPlaceholders = [portalName: adminPortal ? 'TMS Admin Dashboard' : 'TMS Student Portal',
+                                portalIcon: adminPortal ? '@mipmap/tms_admin' : '@mipmap/tms_circle']
+        minSdk 26
+        targetSdk 35
+        versionCode (adminPortal ? 1 : 2)
+        versionName (adminPortal ? '1.0' : '1.1')
+    }
+    signingConfigs {
+        if (releaseKeystore) {
+            release {
+                storeFile file(releaseKeystore)
+                storePassword System.getenv('TMS_ANDROID_STORE_PASSWORD')
+                keyAlias System.getenv('TMS_ANDROID_KEY_ALIAS')
+                keyPassword System.getenv('TMS_ANDROID_KEY_PASSWORD')
+            }
+        }
+    }
+    buildTypes {
+        release {
+            if (releaseKeystore) signingConfig signingConfigs.release
+        }
+    }
+}
